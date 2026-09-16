@@ -1,249 +1,344 @@
 // script.js
-// Consome a countries.dev (https://countries.dev/) — API pública, sem necessidade de chave.
-//
-// Observação: este projeto usava a REST Countries (restcountries.com v3.1), mas essa versão
-// foi descontinuada — hoje ela exige conta e chave de API (v5). Como o objetivo é rodar em
-// GitHub Pages (site estático, sem backend), trocamos para a countries.dev, que oferece os
-// mesmos dados sem exigir autenticação.
-//
-// A countries.dev só devolve nomes/regiões/idiomas em inglês (não tem campo de traduções).
-// Por isso mantemos dicionários locais para exibir tudo em português.
+// Compatível com o index.html e o style.css enviados.
+// A API countries.dev recebe o nome do país em inglês, mas a interface
+// aceita somente o idioma atualmente selecionado.
+
+const API_URL = "https://countries.dev/name/";
 
 const form = document.getElementById("search-form");
 const input = document.getElementById("country-input");
-const searchBtn = document.getElementById("search-btn");
-const statusEl = document.getElementById("status");
-const resultEl = document.getElementById("result");
+const langSelect = document.getElementById("lang-select");
+const searchButton = document.getElementById("search-btn");
+const statusElement = document.getElementById("status");
+const resultElement = document.getElementById("result");
 const chips = document.querySelectorAll(".chip");
 
-// A API busca pelo nome em inglês. Como o público deste app fala português, traduzimos
-// os nomes mais comuns antes de consultar (ex: "frança" -> "france").
-const PT_TO_EN = {
-  "africa do sul": "south africa", "alemanha": "germany", "arabia saudita": "saudi arabia",
-  "argentina": "argentina", "australia": "australia", "austria": "austria", "belgica": "belgium",
-  "bolivia": "bolivia", "brasil": "brazil", "canada": "canada", "chile": "chile", "china": "china",
-  "colombia": "colombia", "coreia do sul": "south korea", "coreia do norte": "north korea",
-  "costa rica": "costa rica", "cuba": "cuba", "dinamarca": "denmark", "egito": "egypt",
-  "equador": "ecuador", "escocia": "scotland", "espanha": "spain", "estados unidos": "united states",
-  "eua": "united states", "filipinas": "philippines", "franca": "france", "grecia": "greece",
-  "holanda": "netherlands", "hungria": "hungary", "india": "india", "inglaterra": "england",
-  "irlanda": "ireland", "islandia": "iceland", "italia": "italy", "japao": "japan", "mexico": "mexico",
-  "noruega": "norway", "nova zelandia": "new zealand", "paraguai": "paraguay", "peru": "peru",
-  "polonia": "poland", "portugal": "portugal", "reino unido": "united kingdom", "russia": "russia",
-  "suecia": "sweden", "suica": "switzerland", "turquia": "turkey", "ucrania": "ukraine",
-  "uruguai": "uruguay", "venezuela": "venezuela",
+const TEXT = {
+  pt: {
+    subtitle: "Consulta em tempo real com a WEBAPI",
+    placeholder: "Digite o nome de um país",
+    button: "Consultar",
+    hint: "Experimente:",
+    loading: "Consultando o atlas...",
+    empty: "Digite o nome de um país.",
+    invalid: "O idioma selecionado é português. Use o nome do país em português.",
+    notFound: (query) => `Nenhum país encontrado para “${query}”. Confira a grafia e use português.`,
+    network: "Não foi possível conectar à API. Verifique sua internet.",
+    api: "A API de países respondeu com um erro. Tente novamente em instantes.",
+    noData: "Não informado",
+    noBorders: "Nenhuma (país insular ou isolado)",
+    populationSuffix: "hab.",
+    flagAlt: (name) => `Bandeira de ${name}`,
+    labels: ["Capital", "População", "Área", "Moeda(s)", "Idioma(s)", "Fronteiras"],
+  },
+  en: {
+    subtitle: "Real-time search using the WEB API",
+    placeholder: "Type a country name",
+    button: "Search",
+    hint: "Try:",
+    loading: "Searching the atlas...",
+    empty: "Type a country name.",
+    invalid: "The selected language is English. Use the country name in English.",
+    notFound: (query) => `No country found for “${query}”. Check the spelling and use English.`,
+    network: "Could not connect to the API. Check your internet connection.",
+    api: "The countries API returned an error. Please try again shortly.",
+    noData: "Not provided",
+    noBorders: "None (island or isolated country)",
+    populationSuffix: "pop.",
+    flagAlt: (name) => `Flag of ${name}`,
+    labels: ["Capital", "Population", "Area", "Currency/Currencies", "Language(s)", "Borders"],
+  },
 };
 
-// Nomes de países (como a countries.dev devolve, em inglês) traduzidos para português.
-// Usado só para EXIBIÇÃO — a busca continua em inglês por baixo dos panos.
+function normalize(value) {
+  return value
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function currentLanguage() {
+  return langSelect.value === "en" ? "en" : "pt";
+}
+
+function text(key, ...args) {
+  const value = TEXT[currentLanguage()][key];
+  return typeof value === "function" ? value(...args) : value;
+}
+
+// Nome em português normalizado -> nome usado na API.
+const PT_TO_EN = {
+  afeganistao: "afghanistan", africa: "africa", "africa do sul": "south africa",
+  albania: "albania", alemanha: "germany", argelia: "algeria", "arabia saudita": "saudi arabia",
+  argentina: "argentina", armenia: "armenia", australia: "australia", austria: "austria",
+  azerbaijao: "azerbaijan", bahamas: "bahamas", bahrein: "bahrain", bangladesh: "bangladesh",
+  belgica: "belgium", belarus: "belarus", belize: "belize", benin: "benin", bolivia: "bolivia",
+  botsuana: "botswana", brasil: "brazil", brunei: "brunei", bulgaria: "bulgaria", butao: "bhutan",
+  camboja: "cambodia", camaroes: "cameroon", canada: "canada", catar: "qatar", chade: "chad",
+  chile: "chile", china: "china", chipre: "cyprus", colombia: "colombia", comores: "comoros",
+  "costa rica": "costa rica", croacia: "croatia", cuba: "cuba", dinamarca: "denmark", djibuti: "djibouti",
+  equador: "ecuador", egito: "egypt", "el salvador": "el salvador", "emirados arabes unidos": "united arab emirates",
+  eslovaquia: "slovakia", eslovenia: "slovenia", espanha: "spain", "estados unidos": "united states",
+  eua: "united states", estonia: "estonia", etiopia: "ethiopia", filipinas: "philippines",
+  finlandia: "finland", franca: "france", gales: "wales", georgia: "georgia", gana: "ghana",
+  grecia: "greece", guatemala: "guatemala", guine: "guinea", guiana: "guyana", haiti: "haiti",
+  holanda: "netherlands", honduras: "honduras", hungria: "hungary", india: "india", indonesia: "indonesia",
+  inglaterra: "england", ira: "iran", iraque: "iraq", irlanda: "ireland", islandia: "iceland",
+  israel: "israel", italia: "italy", jamaica: "jamaica", japao: "japan", jordania: "jordan",
+  cazaquistao: "kazakhstan", quenia: "kenya", kuwait: "kuwait", laos: "laos", letonia: "latvia",
+  libano: "lebanon", liberia: "liberia", libia: "libya", lituania: "lithuania", luxemburgo: "luxembourg",
+  madagascar: "madagascar", malasia: "malaysia", malawi: "malawi", maldivas: "maldives", mali: "mali",
+  malta: "malta", marrocos: "morocco", mauritania: "mauritania", mauricia: "mauritius", mexico: "mexico",
+  mianmar: "myanmar", moldavia: "moldova", monaco: "monaco", mongolia: "mongolia", montenegro: "montenegro",
+  mocambique: "mozambique", namibia: "namibia", nepal: "nepal", nicaragua: "nicaragua", niger: "niger",
+  nigeria: "nigeria", noruega: "norway", "nova zelandia": "new zealand", oma: "oman", paquistao: "pakistan",
+  palestina: "palestine", panama: "panama", paraguai: "paraguay", peru: "peru", polonia: "poland",
+  portugal: "portugal", "reino unido": "united kingdom", romenia: "romania", ruanda: "rwanda", russia: "russia",
+  senegal: "senegal", "serra leoa": "sierra leone", singapura: "singapore", siria: "syria", somalia: "somalia",
+  "sri lanka": "sri lanka", sudao: "sudan", "sudao do sul": "south sudan", suriname: "suriname",
+  suecia: "sweden", suica: "switzerland", taiwan: "taiwan", tanzania: "tanzania", tchequia: "czechia",
+  tailandia: "thailand", togo: "togo", tunisia: "tunisia", turquia: "turkey", ucrania: "ukraine",
+  uganda: "uganda", uruguai: "uruguay", uzbequistao: "uzbekistan", vaticano: "vatican city",
+  venezuela: "venezuela", vietna: "vietnam", zambia: "zambia", zimbabue: "zimbabwe",
+};
+
+// Estes termos não podem ser usados quando o seletor está em inglês.
+// Nomes iguais nos dois idiomas, como Canada, Portugal e Argentina, ficam liberados.
+const PT_ONLY_TERMS = new Set(
+  Object.entries(PT_TO_EN)
+    .filter(([pt, en]) => normalize(pt) !== normalize(en))
+    .map(([pt]) => pt),
+);
+
+const CHIP_NAMES = {
+  brasil: { pt: "Brasil", en: "Brazil" },
+  japan: { pt: "Japão", en: "Japan" },
+  portugal: { pt: "Portugal", en: "Portugal" },
+  egypt: { pt: "Egito", en: "Egypt" },
+  australia: { pt: "Austrália", en: "Australia" },
+  canada: { pt: "Canadá", en: "Canada" },
+};
+
 const COUNTRY_NAME_PT = {
-  "Afghanistan": "Afeganistão", "Albania": "Albânia", "Algeria": "Argélia", "Andorra": "Andorra",
-  "Angola": "Angola", "Argentina": "Argentina", "Armenia": "Armênia", "Australia": "Austrália",
-  "Austria": "Áustria", "Azerbaijan": "Azerbaijão", "Bahamas": "Bahamas", "Bahrain": "Bahrein",
-  "Bangladesh": "Bangladesh", "Belarus": "Belarus", "Belgium": "Bélgica", "Belize": "Belize",
-  "Benin": "Benin", "Bhutan": "Butão", "Bolivia": "Bolívia", "Bosnia and Herzegovina": "Bósnia e Herzegovina",
-  "Botswana": "Botsuana", "Brazil": "Brasil", "Brunei": "Brunei", "Bulgaria": "Bulgária",
-  "Burkina Faso": "Burkina Faso", "Burundi": "Burundi", "Cambodia": "Camboja", "Cameroon": "Camarões",
-  "Canada": "Canadá", "Chad": "Chade", "Chile": "Chile", "China": "China", "Colombia": "Colômbia",
-  "Comoros": "Comores", "Costa Rica": "Costa Rica", "Croatia": "Croácia", "Cuba": "Cuba",
-  "Cyprus": "Chipre", "Czechia": "Tchéquia", "Czech Republic": "República Tcheca",
-  "Democratic Republic of the Congo": "República Democrática do Congo", "Denmark": "Dinamarca",
-  "Djibouti": "Djibuti", "Dominican Republic": "República Dominicana", "Ecuador": "Equador",
-  "Egypt": "Egito", "El Salvador": "El Salvador", "England": "Inglaterra", "Estonia": "Estônia",
-  "Eswatini": "Essuatíni", "Ethiopia": "Etiópia", "Fiji": "Fiji", "Finland": "Finlândia",
-  "France": "França", "Gabon": "Gabão", "Gambia": "Gâmbia", "Georgia": "Geórgia",
-  "Germany": "Alemanha", "Ghana": "Gana", "Greece": "Grécia", "Guatemala": "Guatemala",
-  "Guinea": "Guiné", "Guyana": "Guiana", "Haiti": "Haiti", "Honduras": "Honduras",
-  "Hungary": "Hungria", "Iceland": "Islândia", "India": "Índia", "Indonesia": "Indonésia",
-  "Iran": "Irã", "Iraq": "Iraque", "Ireland": "Irlanda", "Israel": "Israel", "Italy": "Itália",
-  "Ivory Coast": "Costa do Marfim", "Jamaica": "Jamaica", "Japan": "Japão", "Jordan": "Jordânia",
-  "Kazakhstan": "Cazaquistão", "Kenya": "Quênia", "Kuwait": "Kuwait", "Kyrgyzstan": "Quirguistão",
-  "Laos": "Laos", "Latvia": "Letônia", "Lebanon": "Líbano", "Lesotho": "Lesoto", "Liberia": "Libéria",
-  "Libya": "Líbia", "Liechtenstein": "Liechtenstein", "Lithuania": "Lituânia", "Luxembourg": "Luxemburgo",
-  "Madagascar": "Madagascar", "Malawi": "Malawi", "Malaysia": "Malásia", "Maldives": "Maldivas",
-  "Mali": "Mali", "Malta": "Malta", "Mauritania": "Mauritânia", "Mauritius": "Maurícia",
-  "Mexico": "México", "Moldova": "Moldávia", "Monaco": "Mônaco", "Mongolia": "Mongólia",
-  "Montenegro": "Montenegro", "Morocco": "Marrocos", "Mozambique": "Moçambique", "Myanmar": "Mianmar",
-  "Namibia": "Namíbia", "Nepal": "Nepal", "Netherlands": "Holanda", "New Zealand": "Nova Zelândia",
-  "Nicaragua": "Nicarágua", "Niger": "Níger", "Nigeria": "Nigéria", "North Korea": "Coreia do Norte",
-  "North Macedonia": "Macedônia do Norte", "Norway": "Noruega", "Oman": "Omã", "Pakistan": "Paquistão",
-  "Palestine": "Palestina", "Panama": "Panamá", "Papua New Guinea": "Papua-Nova Guiné",
-  "Paraguay": "Paraguai", "Peru": "Peru", "Philippines": "Filipinas", "Poland": "Polônia",
-  "Portugal": "Portugal", "Qatar": "Catar", "Republic of the Congo": "República do Congo",
-  "Romania": "Romênia", "Russia": "Rússia", "Rwanda": "Ruanda", "Saudi Arabia": "Arábia Saudita",
-  "Scotland": "Escócia", "Senegal": "Senegal", "Serbia": "Sérvia", "Sierra Leone": "Serra Leoa",
-  "Singapore": "Singapura", "Slovakia": "Eslováquia", "Slovenia": "Eslovênia", "Somalia": "Somália",
-  "South Africa": "África do Sul", "South Korea": "Coreia do Sul", "South Sudan": "Sudão do Sul",
-  "Spain": "Espanha", "Sri Lanka": "Sri Lanka", "Sudan": "Sudão", "Suriname": "Suriname",
-  "Sweden": "Suécia", "Switzerland": "Suíça", "Syria": "Síria", "Taiwan": "Taiwan",
-  "Tajikistan": "Tajiquistão", "Tanzania": "Tanzânia", "Thailand": "Tailândia", "Togo": "Togo",
-  "Trinidad and Tobago": "Trinidad e Tobago", "Tunisia": "Tunísia", "Turkey": "Turquia",
-  "Turkmenistan": "Turcomenistão", "Uganda": "Uganda", "Ukraine": "Ucrânia",
-  "United Arab Emirates": "Emirados Árabes Unidos", "United Kingdom": "Reino Unido",
-  "United States of America": "Estados Unidos", "United States": "Estados Unidos", "Uruguay": "Uruguai",
-  "Uzbekistan": "Uzbequistão", "Vanuatu": "Vanuatu", "Vatican City": "Vaticano", "Venezuela": "Venezuela",
-  "Vietnam": "Vietnã", "Wales": "País de Gales", "Yemen": "Iêmen", "Zambia": "Zâmbia", "Zimbabwe": "Zimbábue",
+  Afghanistan: "Afeganistão", Albania: "Albânia", Algeria: "Argélia", Argentina: "Argentina",
+  Australia: "Austrália", Austria: "Áustria", Belgium: "Bélgica", Bolivia: "Bolívia", Brazil: "Brasil",
+  Bulgaria: "Bulgária", Cambodia: "Camboja", Cameroon: "Camarões", Canada: "Canadá", Chile: "Chile",
+  China: "China", Colombia: "Colômbia", Croatia: "Croácia", Cuba: "Cuba", Czechia: "Tchéquia",
+  Denmark: "Dinamarca", Ecuador: "Equador", Egypt: "Egito", Estonia: "Estônia", Ethiopia: "Etiópia",
+  Finland: "Finlândia", France: "França", Georgia: "Geórgia", Germany: "Alemanha", Ghana: "Gana",
+  Greece: "Grécia", Guatemala: "Guatemala", Guinea: "Guiné", Guyana: "Guiana", Haiti: "Haiti",
+  Honduras: "Honduras", Hungary: "Hungria", Iceland: "Islândia", India: "Índia", Indonesia: "Indonésia",
+  Iran: "Irã", Iraq: "Iraque", Ireland: "Irlanda", Israel: "Israel", Italy: "Itália", Jamaica: "Jamaica",
+  Japan: "Japão", Jordan: "Jordânia", Kenya: "Quênia", Laos: "Laos", Latvia: "Letônia", Lebanon: "Líbano",
+  Liberia: "Libéria", Libya: "Líbia", Lithuania: "Lituânia", Luxembourg: "Luxemburgo", Madagascar: "Madagascar",
+  Malaysia: "Malásia", Maldives: "Maldivas", Mali: "Mali", Malta: "Malta", Mexico: "México", Moldova: "Moldávia",
+  Monaco: "Mônaco", Mongolia: "Mongólia", Montenegro: "Montenegro", Morocco: "Marrocos", Mozambique: "Moçambique",
+  Myanmar: "Mianmar", Namibia: "Namíbia", Nepal: "Nepal", Netherlands: "Holanda", "New Zealand": "Nova Zelândia",
+  Nicaragua: "Nicarágua", Niger: "Níger", Nigeria: "Nigéria", Norway: "Noruega", Oman: "Omã", Pakistan: "Paquistão",
+  Panama: "Panamá", Paraguay: "Paraguai", Peru: "Peru", Philippines: "Filipinas", Poland: "Polônia",
+  Portugal: "Portugal", Qatar: "Catar", Romania: "Romênia", Russia: "Rússia", Rwanda: "Ruanda",
+  "Saudi Arabia": "Arábia Saudita", Senegal: "Senegal", Serbia: "Sérvia", Singapore: "Singapura",
+  Slovakia: "Eslováquia", Slovenia: "Eslovênia", Somalia: "Somália", "South Africa": "África do Sul",
+  "South Korea": "Coreia do Sul", Spain: "Espanha", Sudan: "Sudão", Suriname: "Suriname", Sweden: "Suécia",
+  Switzerland: "Suíça", Syria: "Síria", Taiwan: "Taiwan", Tanzania: "Tanzânia", Thailand: "Tailândia",
+  Tunisia: "Tunísia", Turkey: "Turquia", Ukraine: "Ucrânia", Uganda: "Uganda", "United Kingdom": "Reino Unido",
+  "United States": "Estados Unidos", Uruguay: "Uruguai", Uzbekistan: "Uzbequistão", Venezuela: "Venezuela",
+  Vietnam: "Vietnã", Zambia: "Zâmbia", Zimbabwe: "Zimbábue",
 };
 
 const REGION_PT = {
-  "Africa": "África", "Americas": "Américas", "Asia": "Ásia", "Europe": "Europa", "Oceania": "Oceania",
-  "Antarctic": "Antártida", "Polar": "Região Polar",
+  Africa: "África", Americas: "Américas", Asia: "Ásia", Europe: "Europa", Oceania: "Oceania",
+  Antarctic: "Antártida", Polar: "Região Polar",
 };
 
 const SUBREGION_PT = {
-  "Northern Africa": "África do Norte", "Eastern Africa": "África Oriental",
-  "Middle Africa": "África Central", "Southern Africa": "África Austral", "Western Africa": "África Ocidental",
-  "Caribbean": "Caribe", "Central America": "América Central", "South America": "América do Sul",
-  "Northern America": "América do Norte", "Central Asia": "Ásia Central", "Eastern Asia": "Ásia Oriental",
-  "South-Eastern Asia": "Sudeste Asiático", "Southern Asia": "Ásia Meridional", "Western Asia": "Ásia Ocidental",
-  "Eastern Europe": "Europa Oriental", "Northern Europe": "Europa do Norte",
-  "Southern Europe": "Europa do Sul", "Western Europe": "Europa Ocidental",
-  "Australia and New Zealand": "Austrália e Nova Zelândia", "Melanesia": "Melanésia",
-  "Micronesia": "Micronésia", "Polynesia": "Polinésia",
+  "Northern Africa": "África do Norte", "Eastern Africa": "África Oriental", "Middle Africa": "África Central",
+  "Southern Africa": "África Austral", "Western Africa": "África Ocidental", Caribbean: "Caribe",
+  "Central America": "América Central", "South America": "América do Sul", "Northern America": "América do Norte",
+  "Central Asia": "Ásia Central", "Eastern Asia": "Ásia Oriental", "South-Eastern Asia": "Sudeste Asiático",
+  "Southern Asia": "Ásia Meridional", "Western Asia": "Ásia Ocidental", "Eastern Europe": "Europa Oriental",
+  "Northern Europe": "Europa do Norte", "Southern Europe": "Europa do Sul", "Western Europe": "Europa Ocidental",
+  "Australia and New Zealand": "Austrália e Nova Zelândia", Melanesia: "Melanésia", Micronesia: "Micronésia",
+  Polynesia: "Polinésia",
 };
 
 const LANGUAGE_PT = {
-  "English": "Inglês", "French": "Francês", "Spanish": "Espanhol", "Portuguese": "Português",
-  "German": "Alemão", "Italian": "Italiano", "Dutch": "Holandês", "Russian": "Russo",
-  "Chinese": "Chinês", "Japanese": "Japonês", "Korean": "Coreano", "Arabic": "Árabe",
-  "Hindi": "Hindi", "Bengali": "Bengali", "Turkish": "Turco", "Vietnamese": "Vietnamita",
-  "Thai": "Tailandês", "Polish": "Polonês", "Ukrainian": "Ucraniano", "Greek": "Grego",
-  "Swedish": "Sueco", "Norwegian": "Norueguês", "Danish": "Dinamarquês", "Finnish": "Finlandês",
-  "Hungarian": "Húngaro", "Czech": "Tcheco", "Romanian": "Romeno", "Hebrew": "Hebraico",
-  "Indonesian": "Indonésio", "Malay": "Malaio", "Swahili": "Suaíli", "Persian": "Persa",
-  "Urdu": "Urdu", "Filipino": "Filipino", "Tagalog": "Tagalo",
+  English: "Inglês", French: "Francês", Spanish: "Espanhol", Portuguese: "Português", German: "Alemão",
+  Italian: "Italiano", Dutch: "Holandês", Russian: "Russo", Chinese: "Chinês", Japanese: "Japonês",
+  Korean: "Coreano", Arabic: "Árabe", Hindi: "Hindi", Bengali: "Bengali", Turkish: "Turco",
+  Vietnamese: "Vietnamita", Thai: "Tailandês", Polish: "Polonês", Ukrainian: "Ucraniano", Greek: "Grego",
+  Swedish: "Sueco", Norwegian: "Norueguês", Danish: "Dinamarquês", Finnish: "Finlandês", Hungarian: "Húngaro",
+  Czech: "Tcheco", Romanian: "Romeno", Hebrew: "Hebraico", Indonesian: "Indonésio", Malay: "Malaio",
+  Swahili: "Suaíli", Persian: "Persa", Urdu: "Urdu", Filipino: "Filipino", Tagalog: "Tagalo",
 };
 
-function toSearchTerm(rawQuery) {
-  const normalized = rawQuery
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // remove acentos: "frança" -> "franca"
-  return PT_TO_EN[normalized] || rawQuery;
+function displayName(name) {
+  return currentLanguage() === "pt" ? (COUNTRY_NAME_PT[name] || name) : name;
 }
 
-function translateName(name) {
-  return COUNTRY_NAME_PT[name] || name;
+function translateRegion(value) {
+  return currentLanguage() === "pt" ? (REGION_PT[value] || value) : value;
 }
 
-function translateRegion(region) {
-  return REGION_PT[region] || region;
+function translateSubregion(value) {
+  return currentLanguage() === "pt" ? (SUBREGION_PT[value] || value) : value;
 }
 
-function translateSubregion(subregion) {
-  return SUBREGION_PT[subregion] || subregion;
+function translateLanguage(value) {
+  return currentLanguage() === "pt" ? (LANGUAGE_PT[value] || value) : value;
 }
 
-function translateLanguage(lang) {
-  return LANGUAGE_PT[lang] || lang;
+function updateStaticInterface() {
+  const language = currentLanguage();
+  const labels = document.querySelectorAll(".stat dt");
+  const chipHint = document.querySelector(".hint");
+  const subtitle = document.querySelector(".subtitle");
+
+  input.placeholder = text("placeholder");
+  searchButton.querySelector("span").textContent = text("button");
+  labels.forEach((label, index) => { label.textContent = text("labels")[index]; });
+
+  // Altera somente o texto antes do link, preservando countries.dev.
+  if (subtitle?.firstChild) {
+    subtitle.firstChild.textContent = `${text("subtitle")} `;
+  }
+
+  if (chipHint) {
+    // Preserva os botões e atualiza somente o texto antes deles.
+    const firstTextNode = [...chipHint.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    if (firstTextNode) firstTextNode.textContent = ` ${text("hint")} `;
+  }
+
+  chips.forEach((chip) => {
+    const names = CHIP_NAMES[chip.dataset.name];
+    if (names) {
+      chip.textContent = names[language];
+      chip.dataset.searchName = names[language];
+      chip.title = language === "pt" ? "Pesquisar em português" : "Search in English";
+    }
+  });
+
+  document.documentElement.lang = language === "pt" ? "pt-BR" : "en";
+}
+
+function setLoading() {
+  searchButton.disabled = true;
+  statusElement.dataset.state = "loading";
+  statusElement.textContent = text("loading");
+}
+
+function clearStatus() {
+  searchButton.disabled = false;
+  statusElement.textContent = "";
+  statusElement.removeAttribute("data-state");
+}
+
+function showError(message) {
+  searchButton.disabled = false;
+  statusElement.dataset.state = "error";
+  statusElement.textContent = message;
+}
+
+function getApiSearchTerm(rawQuery) {
+  const normalized = normalize(rawQuery);
+
+  if (currentLanguage() === "pt") {
+    return PT_TO_EN[normalized] || null;
+  }
+
+  if (PT_ONLY_TERMS.has(normalized)) return null;
+  return rawQuery.trim();
+}
+
+function renderCountry(data) {
+  const name = displayName(data.name);
+  const locale = currentLanguage() === "pt" ? "pt-BR" : "en-US";
+  const populationSuffix = text("populationSuffix");
+
+  const flag = document.getElementById("country-flag");
+  flag.src = data.flags?.svg || data.flags?.png || "";
+  flag.alt = text("flagAlt", name);
+
+  document.getElementById("country-region").textContent =
+    [translateRegion(data.region), translateSubregion(data.subregion)].filter(Boolean).join(" · ");
+  document.getElementById("country-name").textContent = name;
+  document.getElementById("country-capital").textContent = data.capital || text("noData");
+  document.getElementById("country-population").textContent = data.population
+    ? `${data.population.toLocaleString(locale)} ${populationSuffix}`
+    : text("noData");
+  document.getElementById("country-area").textContent = data.area
+    ? `${data.area.toLocaleString(locale)} km²`
+    : text("noData");
+  document.getElementById("country-currencies").textContent = Array.isArray(data.currencies) && data.currencies.length
+    ? data.currencies.map((currency) => `${currency.name} (${currency.symbol || "?"})`).join(", ")
+    : text("noData");
+  document.getElementById("country-languages").textContent = Array.isArray(data.languages) && data.languages.length
+    ? data.languages.map((language) => translateLanguage(language.name)).join(", ")
+    : text("noData");
+  document.getElementById("country-borders").textContent = data.borders?.length
+    ? data.borders.join(", ")
+    : text("noBorders");
+
+  resultElement.hidden = false;
+}
+
+async function searchCountry(query) {
+  const apiSearchTerm = getApiSearchTerm(query);
+  setLoading();
+
+  if (!apiSearchTerm) {
+    showError(text("invalid"));
+    resultElement.hidden = true;
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}${encodeURIComponent(apiSearchTerm)}`);
+
+    if (!response.ok) {
+      if (response.status === 404) throw new Error(text("notFound", query));
+      throw new Error(text("api"));
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data) || !data[0]) throw new Error(text("notFound", query));
+
+    renderCountry(data[0]);
+    clearStatus();
+  } catch (error) {
+    showError(error instanceof TypeError ? text("network") : error.message);
+    resultElement.hidden = true;
+  }
 }
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = input.value.trim();
-  if (!query) return;
+
+  if (!query) {
+    showError(text("empty"));
+    input.focus();
+    return;
+  }
+
   searchCountry(query);
+});
+
+langSelect.addEventListener("change", () => {
+  input.value = "";
+  resultElement.hidden = true;
+  clearStatus();
+  updateStaticInterface();
+  input.focus();
 });
 
 chips.forEach((chip) => {
   chip.addEventListener("click", () => {
-    const name = chip.dataset.name;
-    input.value = name;
-    searchCountry(name);
+    const query = chip.dataset.searchName || chip.textContent.trim();
+    input.value = query;
+    searchCountry(query);
   });
 });
 
-async function searchCountry(query) {
-  setLoading();
-
-  try {
-    const searchTerm = toSearchTerm(query);
-    const url = `https://countries.dev/name/${encodeURIComponent(searchTerm)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Não encontramos nenhum país para "${query}". Tente o nome em inglês (ex: "france") ou confira a grafia.`);
-      }
-      throw new Error("A API de países respondeu com um erro. Tente novamente em instantes.");
-    }
-
-    const data = await response.json();
-    // O endpoint /name/{nome} retorna uma lista (pode haver mais de uma correspondência);
-    // usamos a primeira.
-    renderCountry(data[0]);
-    clearStatus();
-  } catch (error) {
-    // Cobre tanto erros de rede (API fora do ar / sem internet) quanto os erros lançados acima
-    const message =
-      error instanceof TypeError
-        ? "Não foi possível conectar à API de países. Verifique sua internet e tente novamente."
-        : error.message;
-    showError(message);
-    resultEl.hidden = true;
-  }
-}
-
-function renderCountry(data) {
-  const namePt = translateName(data.name);
-
-  // 1) Bandeira
-  const flagEl = document.getElementById("country-flag");
-  flagEl.src = data.flags?.svg || data.flags?.png || "";
-  flagEl.alt = `Bandeira de ${namePt}`;
-
-  // 2) Região / sub-região (traduzidas)
-  document.getElementById("country-region").textContent =
-    [translateRegion(data.region), translateSubregion(data.subregion)].filter(Boolean).join(" · ");
-
-  // 3) Nome (traduzido)
-  document.getElementById("country-name").textContent = namePt;
-
-  // 4) Capital
-  document.getElementById("country-capital").textContent = data.capital || "—";
-
-  // 5) População
-  document.getElementById("country-population").textContent =
-    data.population ? data.population.toLocaleString("pt-BR") + " hab." : "—";
-
-  // 6) Área
-  document.getElementById("country-area").textContent =
-    data.area ? data.area.toLocaleString("pt-BR") + " km²" : "—";
-
-  // 7) Moeda(s)
-  const currencies = Array.isArray(data.currencies)
-    ? data.currencies.map((c) => `${c.name} (${c.symbol || "?"})`).join(", ")
-    : "—";
-  document.getElementById("country-currencies").textContent = currencies;
-
-  // 8) Idioma(s) (traduzidos)
-  const languages = Array.isArray(data.languages)
-    ? data.languages.map((l) => translateLanguage(l.name)).join(", ")
-    : "—";
-  document.getElementById("country-languages").textContent = languages;
-
-  // 9) Fronteiras (códigos de 3 letras, ex: BRA, ARG — mantidos como a API devolve)
-  const borders = data.borders && data.borders.length ? data.borders.join(", ") : "Nenhuma (país insular ou isolado)";
-  document.getElementById("country-borders").textContent = borders;
-
-  resultEl.hidden = false;
-}
-
-function setLoading() {
-  searchBtn.disabled = true;
-  statusEl.dataset.state = "loading";
-  statusEl.textContent = "Consultando o atlas...";
-}
-
-function clearStatus() {
-  searchBtn.disabled = false;
-  statusEl.removeAttribute("data-state");
-  statusEl.textContent = "";
-}
-
-function showError(message) {
-  searchBtn.disabled = false;
-  statusEl.dataset.state = "error";
-  statusEl.textContent = message;
-}
+updateStaticInterface();
