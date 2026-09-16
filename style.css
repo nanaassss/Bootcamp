@@ -39,8 +39,7 @@ body {
 /* ---------- Header ---------- */
 .topbar {
   background: var(--navy);
-  background-image:
-    linear-gradient(180deg, var(--navy), var(--navy-deep));
+  background-image: linear-gradient(180deg, var(--navy), var(--navy-deep));
   border-bottom: 4px solid var(--gold);
   padding: 30px 20px 34px;
   text-align: center;
@@ -111,6 +110,7 @@ main {
 
 #country-input {
   flex: 1;
+  min-width: 0;
   border: 1.5px solid var(--line);
   border-radius: 6px;
   padding: 12px 14px;
@@ -120,9 +120,45 @@ main {
   color: var(--ink);
 }
 
-#country-input:focus-visible {
+#country-input:focus-visible,
+#lang-select:focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: 1px;
+}
+
+/* ---------- Language selector ---------- */
+#lang-select {
+  min-width: 126px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 30px 12px 12px;
+  color: var(--navy-deep);
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--navy) 50%),
+    linear-gradient(135deg, var(--navy) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#lang-select:hover {
+  border-color: var(--gold-light);
+  background-color: #fffaf0;
+}
+
+#lang-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.25);
+  outline: none;
 }
 
 #search-btn {
@@ -247,9 +283,7 @@ main {
   padding: 10px 12px;
 }
 
-.stat-wide {
-  grid-column: 1 / -1;
-}
+.stat-wide { grid-column: 1 / -1; }
 
 .stat dt {
   font-size: 11px;
@@ -277,7 +311,15 @@ footer {
 
 footer a { color: var(--navy); }
 
+@media (max-width: 560px) {
+  .search-form { flex-wrap: wrap; }
+  #country-input { flex-basis: 100%; }
+  #lang-select,
+  #search-btn { flex: 1; }
+}
+
 @media (max-width: 480px) {
   .search-form { flex-direction: column; }
+  #lang-select,
   #search-btn { width: 100%; }
 }
