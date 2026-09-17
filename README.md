@@ -1,47 +1,108 @@
 Atlas Rápido
 
-Aplicação web estática para pesquisa de países em tempo real. O projeto consulta a API pública  e apresenta informações geográficas e demográficas de diferentes países.
-
-Autor
-
-Geovanna Gabrielle, estudante de Análise e Desenvolvimento de Sistemas.
+Aplicação web estática para pesquisa de países em tempo real. O projeto consulta a API pública countries.dev e apresenta informações geográficas e demográficas de diferentes países.
 
 Demonstração
 
 •
-Aplicação publicada: 
+Aplicação publicada: adicione aqui o link do GitHub Pages
 
 •
-Repositório: 
+Repositório: github.com/nanaassss/Bootcamp
+
+Sobre o projeto
+
+O Atlas Rápido permite pesquisar países em português ou inglês e visualizar informações detalhadas sobre cada resultado. A interface adapta seus textos, mensagens e formatação numérica ao idioma selecionado.
 
 Funcionalidades
 
-A aplicação permite selecionar o idioma da pesquisa entre Português e English. Depois da seleção, o campo de busca e os exemplos rápidos aceitam somente nomes no idioma escolhido. A interface também atualiza automaticamente os textos principais, as mensagens de status, os rótulos dos resultados e o subtítulo da página.
+•
+Seleção do idioma de pesquisa entre Português e English.
 
-Ao encontrar um país, a aplicação exibe sua bandeira, nome, região, sub-região, capital, população, área, moeda, idiomas e fronteiras. Os números são formatados de acordo com o idioma selecionado, usando pt-BR ou en-US.
+•
+Campo de busca e exemplos rápidos adaptados ao idioma selecionado.
 
-A aplicação também trata entradas vazias, nomes incompatíveis com o idioma selecionado, países não encontrados, falhas de conexão e erros retornados pela API.
+•
+Atualização automática dos textos principais, mensagens de status, rótulos dos resultados e subtítulo da página.
+
+•
+Exibição das seguintes informações sobre o país pesquisado:
+
+•
+Bandeira;
+
+•
+Nome;
+
+•
+Região;
+
+•
+Sub-região;
+
+•
+Capital;
+
+•
+População;
+
+•
+Área;
+
+•
+Moeda;
+
+•
+Idiomas;
+
+•
+Países fronteiriços.
+
+
+
+•
+Formatação de números de acordo com o idioma escolhido, utilizando pt-BR ou en-US.
+
+•
+Tratamento de diferentes situações, como:
+
+•
+Entradas vazias;
+
+•
+Nomes incompatíveis com o idioma selecionado;
+
+•
+Países não encontrados;
+
+•
+Falhas de conexão;
+
+•
+Erros retornados pela API.
+
+
 
 Tecnologias utilizadas
 
 •
-HTML5;
+HTML5 — estrutura da página;
 
 •
-CSS3;
+CSS3 — layout, cores, responsividade e estados visuais;
 
 •
-JavaScript puro, sem frameworks;
+JavaScript puro — lógica da aplicação, sem frameworks;
 
 •
-API pública countries.dev;
+countries.dev — API pública de dados sobre países;
 
 •
-GitHub Pages para hospedagem.
+GitHub Pages — hospedagem da aplicação.
 
 API utilizada
 
-A aplicação utiliza o endpoint abaixo:
+A aplicação utiliza o seguinte endpoint:
 
 Plain Text
 
@@ -50,9 +111,9 @@ GET https://countries.dev/name/{nome-do-pais}
 
 
 
-A API recebe o nome do país em inglês. Por isso, quando o usuário pesquisa em português, o JavaScript converte o nome para o equivalente em inglês antes de fazer a requisição. A tradução exibida na tela é feita por dicionários locais.
+A API recebe o nome do país em inglês. Por isso, quando o usuário realiza uma pesquisa em português, o JavaScript converte o nome para o equivalente em inglês antes de fazer a requisição.
 
-A API não exige chave de autenticação, o que permite executar o projeto como um site estático no GitHub Pages.
+As traduções exibidas na interface são realizadas por meio de dicionários locais. A API não exige chave de autenticação, permitindo que o projeto seja executado como um site estático no GitHub Pages.
 
 Estrutura do projeto
 
@@ -69,7 +130,7 @@ Plain Text
 
 Como executar localmente
 
-Clone o repositório usando o Git:
+1. Clone o repositório
 
 Bash
 
@@ -79,9 +140,11 @@ cd Bootcamp
 
 
 
-Depois, abra o arquivo index.html diretamente no navegador. Também é possível utilizar a extensão Live Server do Visual Studio Code para executar a página durante o desenvolvimento.
+2. Abra a aplicação
 
-Como o projeto é estático, não é necessário instalar dependências ou iniciar um servidor backend.
+Abra o arquivo index.html diretamente no navegador. Durante o desenvolvimento, também é possível utilizar a extensão Live Server no Visual Studio Code.
+
+Como o projeto é estático, não é necessário instalar dependências nem iniciar um servidor backend.
 
 Como atualizar o projeto
 
@@ -97,14 +160,24 @@ git push origin main
 
 
 
-Após o envio, o GitHub Pages pode levar alguns instantes para publicar a nova versão. Caso o navegador ainda mostre a versão anterior, faça uma atualização forçada com Ctrl + F5.
+Após o envio, o GitHub Pages pode levar alguns instantes para publicar a nova versão. Caso o navegador ainda exiba a versão anterior, faça uma atualização forçada utilizando Ctrl + F5.
+
+Autor
+
+Desenvolvido por Geovanna Gabrielle, estudante de Análise e Desenvolvimento de Sistemas.
 
 Licença e uso da API
 
-Este projeto foi desenvolvido para fins de estudo. Os dados dos países são fornecidos pela API , que deve ser consultada de acordo com sua documentação e disponibilidade.
+Este projeto foi desenvolvido para fins de estudo. Os dados dos países são fornecidos pela API countries.dev, que deve ser consultada de acordo com sua documentação e disponibilidade.
 
 Referências
 
-[1] Documentação da API countries.dev
-[2] Aplicação Atlas Rápido no GitHub Pages
-[3] Repositório Atlas Rápido no GitHub
+1.
+Documentação da API countries.dev
+
+2.
+Aplicação Atlas Rápido no GitHub Pages — adicione aqui o link da aplicação publicada
+
+3.
+Repositório Atlas Rápido no GitHub
+
