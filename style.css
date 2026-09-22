@@ -299,6 +299,106 @@ main {
   font-size: 15px;
 }
 
+/* ---------- Favorites / Supabase ---------- */
+.favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: var(--gold);
+  color: var(--navy-deep);
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.favorite-btn:hover:not(:disabled) { background: var(--gold-light); transform: translateY(-2px); }
+.favorite-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.favorite-btn.is-saved { background: var(--gold-light); }
+.favorite-btn > span:first-child { font-size: 20px; line-height: 1; }
+
+.favorites-card {
+  margin-top: 28px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 5px 5px 0 rgba(15,36,56,0.15);
+}
+
+.favorites-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.favorites-heading h2 {
+  margin: 0;
+  color: var(--navy);
+  font: 700 clamp(20px, 3.4vw, 26px) var(--font-display);
+}
+
+.secondary-btn,
+.remove-favorite-btn {
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: #fff;
+  color: var(--navy);
+  font: 600 12px var(--font-body);
+  cursor: pointer;
+}
+
+.secondary-btn:hover,
+.remove-favorite-btn:hover { background: #fffaf0; border-color: var(--gold-light); }
+
+.favorites-status {
+  min-height: 20px;
+  margin: 14px 0 4px;
+  color: var(--grey);
+  font-size: 13px;
+}
+
+.favorites-status[data-state="warning"] { color: #856404; }
+.favorites-status[data-state="error"] { color: #7a3b3b; font-weight: 600; }
+.favorites-status[data-state="success"] { color: #176b54; font-weight: 600; }
+
+.favorites-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.favorite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1.5px dashed var(--grey);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.favorite-item strong,
+.favorite-item small { display: block; }
+.favorite-item small { margin-top: 3px; color: var(--grey); font-size: 11px; }
+.favorites-empty { color: var(--grey); font-size: 14px; }
+
 /* ---------- Footer ---------- */
 footer {
   text-align: center;
