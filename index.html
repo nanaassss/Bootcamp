@@ -58,6 +58,11 @@
         </div>
       </div>
 
+      <button type="button" id="favorite-btn" class="favorite-btn">
+        <span aria-hidden="true">☆</span>
+        <span>Favoritar país</span>
+      </button>
+
       <dl class="stat-grid">
         <div class="stat">
           <dt>Capital</dt>
@@ -85,12 +90,24 @@
         </div>
       </dl>
     </section>
+
+    <section id="favorites-section" class="favorites-card" aria-labelledby="favorites-title">
+      <div class="favorites-heading">
+        <div>
+          <p class="eyebrow">Persistência</p>
+          <h2 id="favorites-title">Meus países favoritos</h2>
+        </div>
+        <button type="button" id="refresh-favorites-btn" class="secondary-btn">Atualizar</button>
+      </div>
+      <p id="favorites-status" class="favorites-status" role="status" aria-live="polite"></p>
+      <ul id="favorites-list" class="favorites-list"></ul>
+    </section>
   </main>
 
   <footer>
     <p>Projeto de estudo — consome dados públicos da <a href="https://countries.dev/" target="_blank" rel="noopener">countries.dev</a>, sem necessidade de chave de API.</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
