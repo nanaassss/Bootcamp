@@ -1,589 +1,650 @@
-// script.js
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// A chave anon é própria para uso no frontend. Nunca coloque aqui a chave
-// service_role.
-const SUPABASE_URL = "https://lvpobhssmypsohckqngb.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cG9iaHNzbXlwc29oY2txbmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwOTAzMDUsImV4cCI6MjEwNTY2NjMwNX0.PhZwIgzHEXoEcDOnMjhQ9qHE8dKF8jzkF4gxtjXdpzw";
-const FAVORITES_TABLE = "favoritos";
-const supabaseConfigured =
-  SUPABASE_URL.startsWith("https://") &&
-  SUPABASE_ANON_KEY.length > 0 &&
-  !SUPABASE_URL.includes("SEU-PROJETO") &&
-  !SUPABASE_ANON_KEY.includes("SUA_CHAVE");
-const supabase = supabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
-// Compatível com o index.html e o style.css enviados.
-// A API countries.dev recebe o nome do país em inglês, mas a interface
-// aceita somente o idioma atualmente selecionado.
-
-const API_URL = "https://countries.dev/name/";
-
-const form = document.getElementById("search-form");
-const input = document.getElementById("country-input");
-const langSelect = document.getElementById("lang-select");
-const searchButton = document.getElementById("search-btn");
-const statusElement = document.getElementById("status");
-const resultElement = document.getElementById("result");
-const chips = document.querySelectorAll(".chip");
-const favoriteButton = document.getElementById("favorite-btn");
-const favoritesList = document.getElementById("favorites-list");
-const favoritesStatus = document.getElementById("favorites-status");
-const refreshFavoritesButton = document.getElementById("refresh-favorites-btn");
-let currentCountry = null;
-let favoriteNames = new Set();
-
-const TEXT = {
-  pt: {
-    subtitle: "Consulta em tempo real com a WEBAPI",
-    placeholder: "Digite o nome de um país",
-    button: "Consultar",
-    hint: "Experimente:",
-    loading: "Consultando o atlas...",
-    empty: "Digite o nome de um país.",
-    invalid: "O idioma selecionado é português. Use o nome do país em português.",
-    notFound: (query) => `Nenhum país encontrado para “${query}”. Confira a grafia e use português.`,
-    network: "Não foi possível conectar à API. Verifique sua internet.",
-    api: "A API de países respondeu com um erro. Tente novamente em instantes.",
-    noData: "Não informado",
-    noBorders: "Nenhuma (país insular ou isolado)",
-    populationSuffix: "hab.",
-    flagAlt: (name) => `Bandeira de ${name}`,
-    labels: ["Capital", "População", "Área", "Moeda(s)", "Idioma(s)", "Fronteiras"],
-    favorite: "Favoritar país",
-    favorited: "País favoritado",
-    favoritesTitle: "Meus países favoritos",
-    favoritesEmpty: "Nenhum país favorito salvo ainda.",
-    favoritesLoading: "Carregando favoritos...",
-    favoritesNotConfigured: "Configure a URL e a chave anon do Supabase no script.js para ativar os favoritos.",
-    favoritesError: "Não foi possível acessar os favoritos. Confira a tabela e as políticas RLS.",
-    favoriteSaved: "País salvo nos favoritos.",
-    favoriteRemoved: "País removido dos favoritos.",
-    removeFavorite: "Excluir",
-    refresh: "Atualizar",
-  },
-  en: {
-    subtitle: "Real-time search using the WEB API",
-    placeholder: "Type a country name",
-    button: "Search",
-    hint: "Try:",
-    loading: "Searching the atlas...",
-    empty: "Type a country name.",
-    invalid: "The selected language is English. Use the country name in English.",
-    notFound: (query) => `No country found for “${query}”. Check the spelling and use English.`,
-    network: "Could not connect to the API. Check your internet connection.",
-    api: "The countries API returned an error. Please try again shortly.",
-    noData: "Not provided",
-    noBorders: "None (island or isolated country)",
-    populationSuffix: "pop.",
-    flagAlt: (name) => `Flag of ${name}`,
-    labels: ["Capital", "Population", "Area", "Currency/Currencies", "Language(s)", "Borders"],
-    favorite: "Favorite country",
-    favorited: "Country favorited",
-    favoritesTitle: "My favorite countries",
-    favoritesEmpty: "No favorite country saved yet.",
-    favoritesLoading: "Loading favorites...",
-    favoritesNotConfigured: "Set the Supabase URL and anon key in script.js to enable favorites.",
-    favoritesError: "Could not access favorites. Check the table and RLS policies.",
-    favoriteSaved: "Country saved to favorites.",
-    favoriteRemoved: "Country removed from favorites.",
-    removeFavorite: "Delete",
-    refresh: "Refresh",
-  },
-};
-
-function normalize(value) {
-  return value
-    .trim()
-    .toLocaleLowerCase("pt-BR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+:root {
+  --navy: #0f2438;
+  --navy-deep: #0a1826;
+  --paper: #161b2c;
+  --panel: #fffdf6;
+  --gold: #5eead4;
+  --gold-light: #f5c26b;
+  --ink: #1b2431;
+  --grey: #6d7684;
+  --line: #aab7c9;
+  --radius: 10px;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Work Sans", system-ui, sans-serif;
 }
 
-function currentLanguage() {
-  return langSelect.value === "en" ? "en" : "pt";
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(226, 222, 211, 0.12), transparent 45%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
 }
 
-function text(key, ...args) {
-  const value = TEXT[currentLanguage()][key];
-  return typeof value === "function" ? value(...args) : value;
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
-// Nome em português normalizado -> nome usado na API.
-const PT_TO_EN = {
-  afeganistao: "afghanistan", africa: "africa", "africa do sul": "south africa",
-  albania: "albania", alemanha: "germany", argelia: "algeria", "arabia saudita": "saudi arabia",
-  argentina: "argentina", armenia: "armenia", australia: "australia", austria: "austria",
-  azerbaijao: "azerbaijan", bahamas: "bahamas", bahrein: "bahrain", bangladesh: "bangladesh",
-  belgica: "belgium", belarus: "belarus", belize: "belize", benin: "benin", bolivia: "bolivia",
-  botsuana: "botswana", brasil: "brazil", brunei: "brunei", bulgaria: "bulgaria", butao: "bhutan",
-  camboja: "cambodia", camaroes: "cameroon", canada: "canada", catar: "qatar", chade: "chad",
-  chile: "chile", china: "china", chipre: "cyprus", colombia: "colombia", comores: "comoros",
-  "costa rica": "costa rica", croacia: "croatia", cuba: "cuba", dinamarca: "denmark", djibuti: "djibouti",
-  equador: "ecuador", egito: "egypt", "el salvador": "el salvador", "emirados arabes unidos": "united arab emirates",
-  eslovaquia: "slovakia", eslovenia: "slovenia", espanha: "spain", "estados unidos": "united states",
-  eua: "united states", estonia: "estonia", etiopia: "ethiopia", filipinas: "philippines",
-  finlandia: "finland", franca: "france", gales: "wales", georgia: "georgia", gana: "ghana",
-  grecia: "greece", guatemala: "guatemala", guine: "guinea", guiana: "guyana", haiti: "haiti",
-  holanda: "netherlands", honduras: "honduras", hungria: "hungary", india: "india", indonesia: "indonesia",
-  inglaterra: "england", ira: "iran", iraque: "iraq", irlanda: "ireland", islandia: "iceland",
-  israel: "israel", italia: "italy", jamaica: "jamaica", japao: "japan", jordania: "jordan",
-  cazaquistao: "kazakhstan", quenia: "kenya", kuwait: "kuwait", laos: "laos", letonia: "latvia",
-  libano: "lebanon", liberia: "liberia", libia: "libya", lituania: "lithuania", luxemburgo: "luxembourg",
-  madagascar: "madagascar", malasia: "malaysia", malawi: "malawi", maldivas: "maldives", mali: "mali",
-  malta: "malta", marrocos: "morocco", mauritania: "mauritania", mauricia: "mauritius", mexico: "mexico",
-  mianmar: "myanmar", moldavia: "moldova", monaco: "monaco", mongolia: "mongolia", montenegro: "montenegro",
-  mocambique: "mozambique", namibia: "namibia", nepal: "nepal", nicaragua: "nicaragua", niger: "niger",
-  nigeria: "nigeria", noruega: "norway", "nova zelandia": "new zealand", oma: "oman", paquistao: "pakistan",
-  palestina: "palestine", panama: "panama", paraguai: "paraguay", peru: "peru", polonia: "poland",
-  portugal: "portugal", "reino unido": "united kingdom", romenia: "romania", ruanda: "rwanda", russia: "russia",
-  senegal: "senegal", "serra leoa": "sierra leone", singapura: "singapore", siria: "syria", somalia: "somalia",
-  "sri lanka": "sri lanka", sudao: "sudan", "sudao do sul": "south sudan", suriname: "suriname",
-  suecia: "sweden", suica: "switzerland", taiwan: "taiwan", tanzania: "tanzania", tchequia: "czechia",
-  tailandia: "thailand", togo: "togo", tunisia: "tunisia", turquia: "turkey", ucrania: "ukraine",
-  uganda: "uganda", uruguai: "uruguay", uzbequistao: "uzbekistan", vaticano: "vatican city",
-  venezuela: "venezuela", vietna: "vietnam", zambia: "zambia", zimbabue: "zimbabwe",
-};
-
-// Estes termos não podem ser usados quando o seletor está em inglês.
-// Nomes iguais nos dois idiomas, como Canada, Portugal e Argentina, ficam liberados.
-const PT_ONLY_TERMS = new Set(
-  Object.entries(PT_TO_EN)
-    .filter(([pt, en]) => normalize(pt) !== normalize(en))
-    .map(([pt]) => pt),
-);
-
-const CHIP_NAMES = {
-  brasil: { pt: "Brasil", en: "Brazil" },
-  japan: { pt: "Japão", en: "Japan" },
-  portugal: { pt: "Portugal", en: "Portugal" },
-  egypt: { pt: "Egito", en: "Egypt" },
-  australia: { pt: "Austrália", en: "Australia" },
-  canada: { pt: "Canadá", en: "Canada" },
-};
-
-const COUNTRY_NAME_PT = {
-  Afghanistan: "Afeganistão", Albania: "Albânia", Algeria: "Argélia", Argentina: "Argentina",
-  Australia: "Austrália", Austria: "Áustria", Belgium: "Bélgica", Bolivia: "Bolívia", Brazil: "Brasil",
-  Bulgaria: "Bulgária", Cambodia: "Camboja", Cameroon: "Camarões", Canada: "Canadá", Chile: "Chile",
-  China: "China", Colombia: "Colômbia", Croatia: "Croácia", Cuba: "Cuba", Czechia: "Tchéquia",
-  Denmark: "Dinamarca", Ecuador: "Equador", Egypt: "Egito", Estonia: "Estônia", Ethiopia: "Etiópia",
-  Finland: "Finlândia", France: "França", Georgia: "Geórgia", Germany: "Alemanha", Ghana: "Gana",
-  Greece: "Grécia", Guatemala: "Guatemala", Guinea: "Guiné", Guyana: "Guiana", Haiti: "Haiti",
-  Honduras: "Honduras", Hungary: "Hungria", Iceland: "Islândia", India: "Índia", Indonesia: "Indonésia",
-  Iran: "Irã", Iraq: "Iraque", Ireland: "Irlanda", Israel: "Israel", Italy: "Itália", Jamaica: "Jamaica",
-  Japan: "Japão", Jordan: "Jordânia", Kenya: "Quênia", Laos: "Laos", Latvia: "Letônia", Lebanon: "Líbano",
-  Liberia: "Libéria", Libya: "Líbia", Lithuania: "Lituânia", Luxembourg: "Luxemburgo", Madagascar: "Madagascar",
-  Malaysia: "Malásia", Maldives: "Maldivas", Mali: "Mali", Malta: "Malta", Mexico: "México", Moldova: "Moldávia",
-  Monaco: "Mônaco", Mongolia: "Mongólia", Montenegro: "Montenegro", Morocco: "Marrocos", Mozambique: "Moçambique",
-  Myanmar: "Mianmar", Namibia: "Namíbia", Nepal: "Nepal", Netherlands: "Holanda", "New Zealand": "Nova Zelândia",
-  Nicaragua: "Nicarágua", Niger: "Níger", Nigeria: "Nigéria", Norway: "Noruega", Oman: "Omã", Pakistan: "Paquistão",
-  Panama: "Panamá", Paraguay: "Paraguai", Peru: "Peru", Philippines: "Filipinas", Poland: "Polônia",
-  Portugal: "Portugal", Qatar: "Catar", Romania: "Romênia", Russia: "Rússia", Rwanda: "Ruanda",
-  "Saudi Arabia": "Arábia Saudita", Senegal: "Senegal", Serbia: "Sérvia", Singapore: "Singapura",
-  Slovakia: "Eslováquia", Slovenia: "Eslovênia", Somalia: "Somália", "South Africa": "África do Sul",
-  "South Korea": "Coreia do Sul", Spain: "Espanha", Sudan: "Sudão", Suriname: "Suriname", Sweden: "Suécia",
-  Switzerland: "Suíça", Syria: "Síria", Taiwan: "Taiwan", Tanzania: "Tanzânia", Thailand: "Tailândia",
-  Tunisia: "Tunísia", Turkey: "Turquia", Ukraine: "Ucrânia", Uganda: "Uganda", "United Kingdom": "Reino Unido",
-  "United States": "Estados Unidos", Uruguay: "Uruguai", Uzbekistan: "Uzbequistão", Venezuela: "Venezuela",
-  Vietnam: "Vietnã", Zambia: "Zâmbia", Zimbabwe: "Zimbábue",
-};
-
-const REGION_PT = {
-  Africa: "África", Americas: "Américas", Asia: "Ásia", Europe: "Europa", Oceania: "Oceania",
-  Antarctic: "Antártida", Polar: "Região Polar",
-};
-
-const SUBREGION_PT = {
-  "Northern Africa": "África do Norte", "Eastern Africa": "África Oriental", "Middle Africa": "África Central",
-  "Southern Africa": "África Austral", "Western Africa": "África Ocidental", Caribbean: "Caribe",
-  "Central America": "América Central", "South America": "América do Sul", "Northern America": "América do Norte",
-  "Central Asia": "Ásia Central", "Eastern Asia": "Ásia Oriental", "South-Eastern Asia": "Sudeste Asiático",
-  "Southern Asia": "Ásia Meridional", "Western Asia": "Ásia Ocidental", "Eastern Europe": "Europa Oriental",
-  "Northern Europe": "Europa do Norte", "Southern Europe": "Europa do Sul", "Western Europe": "Europa Ocidental",
-  "Australia and New Zealand": "Austrália e Nova Zelândia", Melanesia: "Melanésia", Micronesia: "Micronésia",
-  Polynesia: "Polinésia",
-};
-
-const LANGUAGE_PT = {
-  English: "Inglês", French: "Francês", Spanish: "Espanhol", Portuguese: "Português", German: "Alemão",
-  Italian: "Italiano", Dutch: "Holandês", Russian: "Russo", Chinese: "Chinês", Japanese: "Japonês",
-  Korean: "Coreano", Arabic: "Árabe", Hindi: "Hindi", Bengali: "Bengali", Turkish: "Turco",
-  Vietnamese: "Vietnamita", Thai: "Tailandês", Polish: "Polonês", Ukrainian: "Ucraniano", Greek: "Grego",
-  Swedish: "Sueco", Norwegian: "Norueguês", Danish: "Dinamarquês", Finnish: "Finlandês", Hungarian: "Húngaro",
-  Czech: "Tcheco", Romanian: "Romeno", Hebrew: "Hebraico", Indonesian: "Indonésio", Malay: "Malaio",
-  Swahili: "Suaíli", Persian: "Persa", Urdu: "Urdu", Filipino: "Filipino", Tagalog: "Tagalo",
-};
-
-function displayName(name) {
-  return currentLanguage() === "pt" ? (COUNTRY_NAME_PT[name] || name) : name;
+/* ---------- Header ---------- */
+.topbar {
+  background: var(--navy);
+  background-image: linear-gradient(180deg, var(--navy), var(--navy-deep));
+  border-bottom: 4px solid var(--gold);
+  padding: 30px 20px 34px;
+  text-align: center;
+  position: relative;
 }
 
-function translateRegion(value) {
-  return currentLanguage() === "pt" ? (REGION_PT[value] || value) : value;
+.compass {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid var(--gold-light);
+  position: relative;
+  background: radial-gradient(circle at 35% 30%, #17324a, var(--navy-deep) 70%);
 }
 
-function translateSubregion(value) {
-  return currentLanguage() === "pt" ? (SUBREGION_PT[value] || value) : value;
+.needle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 32px;
+  margin: -16px 0 0 -1.5px;
+  background: linear-gradient(to bottom, var(--gold-light) 50%, #7a3b3b 50%);
+  transform: rotate(35deg);
+  border-radius: 2px;
 }
 
-function translateLanguage(value) {
-  return currentLanguage() === "pt" ? (LANGUAGE_PT[value] || value) : value;
+.topbar h1 {
+  font-family: var(--font-display);
+  color: #ffffff;
+  font-size: clamp(26px, 4.5vw, 38px);
+  letter-spacing: 0.5px;
+  margin: 0 0 10px;
+  font-weight: 700;
 }
 
-function updateStaticInterface() {
-  const language = currentLanguage();
-  const labels = document.querySelectorAll(".stat dt");
-  const chipHint = document.querySelector(".hint");
-  const subtitle = document.querySelector(".subtitle");
+.subtitle {
+  color: var(--gold-light);
+  font-size: 14px;
+  margin: 0;
+}
 
-  input.placeholder = text("placeholder");
-  searchButton.querySelector("span").textContent = text("button");
-  favoriteButton.querySelector("span:last-child").textContent = text("favorite");
-  document.getElementById("favorites-title").textContent = text("favoritesTitle");
-  refreshFavoritesButton.textContent = text("refresh");
-  labels.forEach((label, index) => { label.textContent = text("labels")[index]; });
+.subtitle a {
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: underline;
+}
 
-  // Altera somente o texto antes do link, preservando countries.dev.
-  if (subtitle?.firstChild) {
-    subtitle.firstChild.textContent = `${text("subtitle")} `;
+/* ---------- Main ---------- */
+main {
+  flex: 1;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
+
+.search-form {
+  display: flex;
+  gap: 10px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+  box-shadow: 5px 5px 0 rgba(15,36,56,0.15);
+}
+
+#country-input {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  background: #fff;
+  color: var(--ink);
+}
+
+#country-input:focus-visible,
+#lang-select:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+}
+
+/* ---------- Language selector ---------- */
+#lang-select {
+  min-width: 126px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 30px 12px 12px;
+  color: var(--navy-deep);
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--navy) 50%),
+    linear-gradient(135deg, var(--navy) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#lang-select:hover {
+  border-color: var(--gold-light);
+  background-color: #fffaf0;
+}
+
+#lang-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.25);
+  outline: none;
+}
+
+#search-btn {
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  background: var(--gold);
+  color: var(--navy-deep);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+#search-btn:hover { background: var(--gold-light); transform: translateY(-2px); }
+#search-btn:active { transform: translateY(0); }
+#search-btn:focus-visible { outline: 3px solid var(--navy); outline-offset: 2px; }
+#search-btn:disabled { opacity: 0.6; cursor: progress; }
+
+.hint {
+  margin: 14px 2px 0;
+  font-size: 13px;
+  color: #ffffff;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.chip:hover { background: var(--gold-light); }
+
+/* ---------- Status / errors ---------- */
+.status {
+  margin-top: 18px;
+  min-height: 24px;
+  font-size: 14px;
+}
+
+.status[data-state="loading"] {
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.status[data-state="error"] {
+  color: #fff;
+  background: #7a3b3b;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+/* ---------- Result card ---------- */
+.result-card {
+  margin-top: 22px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 5px 5px 0 rgba(15,36,56,0.15);
+  animation: pop 0.25s ease;
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.result-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+#country-flag {
+  width: 110px;
+  height: 74px;
+  object-fit: cover;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: #eee;
+}
+
+.country-region {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.country-name {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3.4vw, 28px);
+  margin: 4px 0 0;
+  color: var(--navy);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 22px 0 0;
+}
+
+.stat {
+  border: 1.5px dashed var(--grey);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stat-wide { grid-column: 1 / -1; }
+
+.stat dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--grey);
+  margin-bottom: 4px;
+}
+
+.stat dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* ---------- Favorites / Supabase ---------- */
+.favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: var(--gold);
+  color: var(--navy-deep);
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.favorite-btn:hover:not(:disabled) { background: var(--gold-light); transform: translateY(-2px); }
+.favorite-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.favorite-btn.is-saved { background: var(--gold-light); }
+.favorite-btn > span:first-child { font-size: 20px; line-height: 1; }
+
+.favorites-card {
+  margin-top: 28px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 5px 5px 0 rgba(15,36,56,0.15);
+}
+
+.favorites-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.favorites-heading h2 {
+  margin: 0;
+  color: var(--navy);
+  font: 700 clamp(20px, 3.4vw, 26px) var(--font-display);
+}
+
+.secondary-btn,
+.remove-favorite-btn {
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: #fff;
+  color: var(--navy);
+  font: 600 12px var(--font-body);
+  cursor: pointer;
+}
+
+.secondary-btn:hover,
+.remove-favorite-btn:hover { background: #fffaf0; border-color: var(--gold-light); }
+
+.favorites-status {
+  min-height: 20px;
+  margin: 14px 0 4px;
+  color: var(--grey);
+  font-size: 13px;
+}
+
+.favorites-status[data-state="warning"] { color: #856404; }
+.favorites-status[data-state="error"] { color: #7a3b3b; font-weight: 600; }
+.favorites-status[data-state="success"] { color: #176b54; font-weight: 600; }
+
+.favorites-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.favorite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1.5px dashed var(--grey);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.favorite-item strong,
+.favorite-item small { display: block; }
+.favorite-item small { margin-top: 3px; color: var(--grey); font-size: 11px; }
+.favorites-empty { color: var(--grey); font-size: 14px; }
+
+/* ---------- Footer ---------- */
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--grey);
+  padding: 18px;
+  border-top: 3px solid var(--gold);
+  background: var(--panel);
+}
+
+footer a { color: var(--navy); }
+
+@media (max-width: 560px) {
+  .search-form { flex-wrap: wrap; }
+  #country-input { flex-basis: 100%; }
+  #lang-select,
+  #search-btn { flex: 1; }
+}
+
+@media (max-width: 480px) {
+  .search-form { flex-direction: column; }
+  #lang-select,
+  #search-btn { width: 100%; }
+}
+
+
+/* ---------- Atlas náutico: temas e movimento ---------- */
+:root {
+  --navy: #1B3A5C;
+  --navy-deep: #122A43;
+  --paper: #F7F3E8;
+  --panel: #FFFDF6;
+  --gold: #B8860B;
+  --gold-light: #D7AF45;
+  --ink: #22201A;
+  --grey: #6F746F;
+  --line: #CFC5AF;
+  --shadow-color: rgba(27, 58, 92, 0.16);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --navy: #1B4965;
+  --navy-deep: #091522;
+  --paper: #0D1B2A;
+  --panel: #13283A;
+  --gold: #5FA8D3;
+  --gold-light: #BEE9E8;
+  --ink: #E8EEF2;
+  --grey: #A4B5C2;
+  --line: #41647A;
+  --shadow-color: rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+
+body,
+.search-form,
+.result-card,
+.favorites-card,
+footer,
+#country-input,
+#lang-select,
+.chip,
+.secondary-btn,
+.remove-favorite-btn {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+body {
+  background: radial-gradient(circle at 85% 0%, rgba(226, 222, 211, 0.12), transparent 45%), var(--paper);
+}
+
+.topbar { box-shadow: 0 8px 24px var(--shadow-color); }
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: 600 12px var(--font-body);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.theme-toggle:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+.theme-toggle:focus-visible { outline: 3px solid var(--gold-light); outline-offset: 3px; }
+
+.search-form,
+.result-card,
+.favorites-card { box-shadow: 5px 5px 0 var(--shadow-color); }
+#country-input,
+#lang-select,
+.chip,
+.secondary-btn,
+.remove-favorite-btn { background: var(--panel); color: var(--ink); }
+#lang-select { color: var(--ink); }
+.hint { color: var(--grey); }
+.country-name,
+.favorites-heading h2,
+footer a { color: var(--navy); }
+.status[data-state="loading"] { color: var(--navy); }
+.secondary-btn:hover,
+.remove-favorite-btn:hover { background: color-mix(in srgb, var(--panel) 78%, var(--gold-light)); }
+
+.topbar { animation: atlas-header-in 0.55s ease both; }
+main { animation: atlas-content-in 0.65s 0.08s ease both; }
+.result-card, .favorites-card { animation: atlas-card-in 0.35s ease both; }
+.compass { animation: atlas-compass-in 0.8s ease both; }
+.needle { animation: atlas-needle 1.1s 0.2s ease-out both; }
+
+@keyframes atlas-header-in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes atlas-content-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes atlas-card-in { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes atlas-compass-in { from { opacity: 0; transform: scale(0.7) rotate(-30deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes atlas-needle { from { transform: rotate(-35deg); } to { transform: rotate(35deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* ---------- Tema escolhido: Azul petróleo / Atlas oceânico ---------- */
+:root {
+  --navy: #126071;
+  --navy-deep: #07171C;
+  --paper: #EAF4F4;
+  --panel: #FFFFFF;
+  --gold: #2A91A3;
+  --gold-light: #EFB366;
+  --ink: #17323A;
+  --grey: #668087;
+  --line: #A4C7CA;
+  --shadow-color: rgba(18, 75, 91, 0.18);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --navy: #126071;
+  --navy-deep: #07171C;
+  --paper: #0B2026;
+  --panel: #122E35;
+  --gold: #48B9C8;
+  --gold-light: #F0BD72;
+  --ink: #EDF3F5;
+  --grey: #9EAFB8;
+  --line: #3B6971;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}
+
+/* Transições e microinterações */
+.search-form {
+  transition: transform 0.25s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.search-form:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 5px 7px 0 var(--shadow-color), 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent);
+}
+
+.chip,
+#search-btn,
+.favorite-btn,
+.secondary-btn,
+.remove-favorite-btn {
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.chip:hover { transform: translateY(-2px); box-shadow: 0 4px 10px var(--shadow-color); }
+#search-btn:hover,
+.favorite-btn:hover:not(:disabled) { box-shadow: 0 5px 12px var(--shadow-color); }
+
+.compass { transition: transform 0.35s ease, box-shadow 0.35s ease; }
+.compass:hover { transform: rotate(8deg) scale(1.05); box-shadow: 0 0 0 5px color-mix(in srgb, var(--gold-light) 20%, transparent); }
+
+.result-card:hover,
+.favorites-card:hover { box-shadow: 6px 7px 0 var(--shadow-color); }
+.favorite-item { animation: atlas-favorite-in 0.35s ease both; }
+.favorite-item:nth-child(2) { animation-delay: 0.06s; }
+.favorite-item:nth-child(3) { animation-delay: 0.12s; }
+
+@keyframes atlas-favorite-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-form:focus-within,
+  .chip:hover,
+  #search-btn:hover,
+  .favorite-btn:hover:not(:disabled),
+  .compass:hover { transform: none; }
+}
+
+
+/* Correção de contraste no modo escuro */
+html[data-theme="dark"] .favorites-heading h2 {
+  color: var(--ink);
+}
+
+
+/* ---------- Interações de pesquisa e favoritos ---------- */
+.result-card:not([hidden]) {
+  animation: atlas-result-arrive 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.favorite-pulse {
+  animation: atlas-favorite-pulse 0.55s ease both;
+}
+
+@keyframes atlas-result-arrive {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes atlas-favorite-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold-light) 0%, transparent); }
+  35% { transform: scale(1.08); box-shadow: 0 0 0 7px color-mix(in srgb, var(--gold-light) 28%, transparent); }
+  100% { transform: scale(1); box-shadow: 0 5px 12px var(--shadow-color); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-card:not([hidden]),
+  .favorite-pulse { animation: none; }
+}
+
+
+/* Correção de contraste dos títulos de países no modo escuro */
+html[data-theme="dark"] .country-name {
+  color: var(--ink);
+}
+
+
+/* ---------- Suporte CSS para rolagem suave ---------- */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
+}
+
+.result-card {
+  scroll-margin-top: 72px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
-
-  if (chipHint) {
-    // Preserva os botões e atualiza somente o texto antes deles.
-    const firstTextNode = [...chipHint.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
-    if (firstTextNode) firstTextNode.textContent = ` ${text("hint")} `;
-  }
-
-  chips.forEach((chip) => {
-    const names = CHIP_NAMES[chip.dataset.name];
-    if (names) {
-      chip.textContent = names[language];
-      chip.dataset.searchName = names[language];
-      chip.title = language === "pt" ? "Pesquisar em português" : "Search in English";
-    }
-  });
-
-  document.documentElement.lang = language === "pt" ? "pt-BR" : "en";
 }
-
-function setLoading() {
-  searchButton.disabled = true;
-  statusElement.dataset.state = "loading";
-  statusElement.textContent = text("loading");
-}
-
-function clearStatus() {
-  searchButton.disabled = false;
-  statusElement.textContent = "";
-  statusElement.removeAttribute("data-state");
-}
-
-function showError(message) {
-  searchButton.disabled = false;
-  statusElement.dataset.state = "error";
-  statusElement.textContent = message;
-}
-
-function getApiSearchTerm(rawQuery) {
-  const normalized = normalize(rawQuery);
-
-  if (currentLanguage() === "pt") {
-    return PT_TO_EN[normalized] || null;
-  }
-
-  if (PT_ONLY_TERMS.has(normalized)) return null;
-  return rawQuery.trim();
-}
-
-let scrollAnimationFrame = null;
-
-function scrollToResultSmoothly() {
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const startY = window.scrollY;
-  const resultRect = resultElement.getBoundingClientRect();
-  const targetY = Math.max(0, startY + resultRect.top - 72);
-
-  if (scrollAnimationFrame) cancelAnimationFrame(scrollAnimationFrame);
-
-  if (reduceMotion || Math.abs(targetY - startY) < 8) {
-    window.scrollTo(0, targetY);
-    return;
-  }
-
-  const duration = 1350;
-  const startTime = performance.now();
-  const easeInOutSine = (progress) => -(Math.cos(Math.PI * progress) - 1) / 2;
-
-  function animateScroll(currentTime) {
-    const progress = Math.min((currentTime - startTime) / duration, 1);
-    const easedProgress = easeInOutSine(progress);
-    window.scrollTo(0, startY + (targetY - startY) * easedProgress);
-    if (progress < 1) {
-      scrollAnimationFrame = requestAnimationFrame(animateScroll);
-    } else {
-      scrollAnimationFrame = null;
-    }
-  }
-
-  scrollAnimationFrame = requestAnimationFrame(animateScroll);
-}
-
-function renderCountry(data) {
-  currentCountry = data;
-  const name = displayName(data.name);
-  const locale = currentLanguage() === "pt" ? "pt-BR" : "en-US";
-  const populationSuffix = text("populationSuffix");
-
-  const flag = document.getElementById("country-flag");
-  flag.src = data.flags?.svg || data.flags?.png || "";
-  flag.alt = text("flagAlt", name);
-
-  document.getElementById("country-region").textContent =
-    [translateRegion(data.region), translateSubregion(data.subregion)].filter(Boolean).join(" · ");
-  document.getElementById("country-name").textContent = name;
-  document.getElementById("country-capital").textContent = data.capital || text("noData");
-  document.getElementById("country-population").textContent = data.population
-    ? `${data.population.toLocaleString(locale)} ${populationSuffix}`
-    : text("noData");
-  document.getElementById("country-area").textContent = data.area
-    ? `${data.area.toLocaleString(locale)} km²`
-    : text("noData");
-  document.getElementById("country-currencies").textContent = Array.isArray(data.currencies) && data.currencies.length
-    ? data.currencies.map((currency) => `${currency.name} (${currency.symbol || "?"})`).join(", ")
-    : text("noData");
-  document.getElementById("country-languages").textContent = Array.isArray(data.languages) && data.languages.length
-    ? data.languages.map((language) => translateLanguage(language.name)).join(", ")
-    : text("noData");
-  document.getElementById("country-borders").textContent = data.borders?.length
-    ? data.borders.join(", ")
-    : text("noBorders");
-
-  resultElement.hidden = false;
-  favoriteButton.disabled = !supabaseConfigured;
-  const isSaved = favoriteNames.has(normalize(data.name));
-  favoriteButton.classList.toggle("is-saved", isSaved);
-  favoriteButton.querySelector("span:first-child").textContent = isSaved ? "★" : "☆";
-  favoriteButton.querySelector("span:last-child").textContent = isSaved ? text("favorited") : text("favorite");
-
-  requestAnimationFrame(scrollToResultSmoothly);
-}
-
-function setFavoritesStatus(message, state = "") {
-  favoritesStatus.textContent = message;
-  if (state) favoritesStatus.dataset.state = state;
-  else favoritesStatus.removeAttribute("data-state");
-}
-
-function favoriteData(country) {
-  return {
-    nome: country.name,
-    capital: country.capital || null,
-    bandeira: country.flags?.svg || country.flags?.png || null,
-    regiao: country.region || null,
-  };
-}
-
-function renderFavorites(favorites) {
-  const uniqueMap = new Map();
-  favorites.filter((favorite) => favorite?.nome_item).forEach((favorite) => {
-    const key = normalize(favorite.nome_item);
-    if (!uniqueMap.has(key)) uniqueMap.set(key, favorite);
-  });
-  const uniqueFavorites = [...uniqueMap.values()];
-  favoriteNames = new Set(uniqueFavorites.map((favorite) => normalize(favorite.nome_item)));
-  favoritesList.replaceChildren();
-
-  if (!uniqueFavorites.length) {
-    const empty = document.createElement("li");
-    empty.className = "favorites-empty";
-    empty.textContent = text("favoritesEmpty");
-    favoritesList.append(empty);
-    return;
-  }
-
-  uniqueFavorites.forEach((favorite) => {
-    const item = document.createElement("li");
-    item.className = "favorite-item";
-
-    const info = document.createElement("div");
-    const name = document.createElement("strong");
-    name.textContent = favorite.nome_item;
-    const date = document.createElement("small");
-    date.textContent = favorite.criado_em
-      ? new Date(favorite.criado_em).toLocaleString(currentLanguage() === "pt" ? "pt-BR" : "en-US")
-      : "";
-    info.append(name, date);
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "remove-favorite-btn";
-    remove.textContent = text("removeFavorite");
-    remove.addEventListener("click", () => removeFavorite(favorite.id));
-
-    item.append(info, remove);
-    favoritesList.append(item);
-  });
-}
-
-async function listFavorites() {
-  if (!supabaseConfigured) {
-    setFavoritesStatus(text("favoritesNotConfigured"), "warning");
-    return;
-  }
-
-  setFavoritesStatus(text("favoritesLoading"));
-  const { data, error } = await supabase
-    .from(FAVORITES_TABLE)
-    .select("id, criado_em, nome_item, dados_extra")
-    .order("criado_em", { ascending: false });
-
-  if (error) {
-    setFavoritesStatus(text("favoritesError"), "error");
-    return;
-  }
-
-  renderFavorites(data || []);
-  setFavoritesStatus("");
-}
-
-function animateFavoriteButton() {
-  favoriteButton.classList.remove("favorite-pulse");
-  requestAnimationFrame(() => favoriteButton.classList.add("favorite-pulse"));
-}
-
-async function saveFavorite() {
-  if (!currentCountry || !supabaseConfigured) return;
-
-  const favoriteKey = normalize(currentCountry.name);
-  if (favoriteNames.has(favoriteKey)) {
-    favoriteButton.classList.add("is-saved");
-    animateFavoriteButton();
-    setFavoritesStatus(text("favorited"), "success");
-    return;
-  }
-
-  favoriteButton.disabled = true;
-  const { error } = await supabase.from(FAVORITES_TABLE).insert({
-    nome_item: currentCountry.name,
-    dados_extra: favoriteData(currentCountry),
-  });
-
-  if (error) {
-    favoriteButton.disabled = false;
-    setFavoritesStatus(text("favoritesError"), "error");
-    return;
-  }
-
-  favoriteNames.add(favoriteKey);
-  favoriteButton.classList.add("is-saved");
-  animateFavoriteButton();
-  favoriteButton.querySelector("span:first-child").textContent = "★";
-  favoriteButton.querySelector("span:last-child").textContent = text("favorited");
-  setFavoritesStatus(text("favoriteSaved"), "success");
-  await listFavorites();
-  favoriteButton.disabled = false;
-}
-
-async function removeFavorite(id) {
-  if (!supabaseConfigured) return;
-
-  const { error } = await supabase.from(FAVORITES_TABLE).delete().eq("id", id);
-  if (error) {
-    setFavoritesStatus(text("favoritesError"), "error");
-    return;
-  }
-
-  setFavoritesStatus(text("favoriteRemoved"), "success");
-  await listFavorites();
-}
-
-async function searchCountry(query) {
-  const apiSearchTerm = getApiSearchTerm(query);
-  setLoading();
-
-  if (!apiSearchTerm) {
-    showError(text("invalid"));
-    resultElement.hidden = true;
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}${encodeURIComponent(apiSearchTerm)}`);
-
-    if (!response.ok) {
-      if (response.status === 404) throw new Error(text("notFound", query));
-      throw new Error(text("api"));
-    }
-
-    const data = await response.json();
-    if (!Array.isArray(data) || !data[0]) throw new Error(text("notFound", query));
-
-    renderCountry(data[0]);
-    clearStatus();
-  } catch (error) {
-    showError(error instanceof TypeError ? text("network") : error.message);
-    resultElement.hidden = true;
-  }
-}
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const query = input.value.trim();
-
-  if (!query) {
-    showError(text("empty"));
-    input.focus();
-    return;
-  }
-
-  searchCountry(query);
-});
-
-langSelect.addEventListener("change", () => {
-  input.value = "";
-  resultElement.hidden = true;
-  currentCountry = null;
-  favoriteButton.classList.remove("is-saved");
-  favoriteButton.querySelector("span:first-child").textContent = "☆";
-  clearStatus();
-  updateStaticInterface();
-  listFavorites();
-  input.focus();
-});
-
-chips.forEach((chip) => {
-  chip.addEventListener("click", () => {
-    const query = chip.dataset.searchName || chip.textContent.trim();
-    input.value = query;
-    searchCountry(query);
-  });
-});
-
-favoriteButton.addEventListener("click", saveFavorite);
-refreshFavoritesButton.addEventListener("click", listFavorites);
-
-updateStaticInterface();
-listFavorites();
-
-
-// ---------- Tema claro/escuro ----------
-const themeToggle = document.getElementById("theme-toggle");
-
-function applyTheme(theme) {
-  const isDark = theme === "dark";
-  document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  if (!themeToggle) return;
-  themeToggle.setAttribute("aria-pressed", String(isDark));
-  themeToggle.querySelector("span:first-child").textContent = isDark ? "☀" : "☾";
-  themeToggle.querySelector("span:last-child").textContent = isDark ? "Modo claro" : "Modo escuro";
-}
-
-const savedTheme = localStorage.getItem("atlas-theme");
-applyTheme(savedTheme === "dark" ? "dark" : "light");
-
-themeToggle?.addEventListener("click", () => {
-  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  localStorage.setItem("atlas-theme", nextTheme);
-  applyTheme(nextTheme);
-});
