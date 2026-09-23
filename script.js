@@ -31,6 +31,7 @@ const favoritesList = document.getElementById("favorites-list");
 const favoritesStatus = document.getElementById("favorites-status");
 const refreshFavoritesButton = document.getElementById("refresh-favorites-btn");
 let currentCountry = null;
+let favoriteNames = new Set();
 
 const TEXT = {
   pt: {
@@ -295,6 +296,39 @@ function getApiSearchTerm(rawQuery) {
   return rawQuery.trim();
 }
 
+let scrollAnimationFrame = null;
+
+function scrollToResultSmoothly() {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const startY = window.scrollY;
+  const resultRect = resultElement.getBoundingClientRect();
+  const targetY = Math.max(0, startY + resultRect.top - 72);
+
+  if (scrollAnimationFrame) cancelAnimationFrame(scrollAnimationFrame);
+
+  if (reduceMotion || Math.abs(targetY - startY) < 8) {
+    window.scrollTo(0, targetY);
+    return;
+  }
+
+  const duration = 1350;
+  const startTime = performance.now();
+  const easeInOutSine = (progress) => -(Math.cos(Math.PI * progress) - 1) / 2;
+
+  function animateScroll(currentTime) {
+    const progress = Math.min((currentTime - startTime) / duration, 1);
+    const easedProgress = easeInOutSine(progress);
+    window.scrollTo(0, startY + (targetY - startY) * easedProgress);
+    if (progress < 1) {
+      scrollAnimationFrame = requestAnimationFrame(animateScroll);
+    } else {
+      scrollAnimationFrame = null;
+    }
+  }
+
+  scrollAnimationFrame = requestAnimationFrame(animateScroll);
+}
+
 function renderCountry(data) {
   currentCountry = data;
   const name = displayName(data.name);
@@ -327,7 +361,12 @@ function renderCountry(data) {
 
   resultElement.hidden = false;
   favoriteButton.disabled = !supabaseConfigured;
-  favoriteButton.classList.toggle("is-saved", false);
+  const isSaved = favoriteNames.has(normalize(data.name));
+  favoriteButton.classList.toggle("is-saved", isSaved);
+  favoriteButton.querySelector("span:first-child").textContent = isSaved ? "★" : "☆";
+  favoriteButton.querySelector("span:last-child").textContent = isSaved ? text("favorited") : text("favorite");
+
+  requestAnimationFrame(scrollToResultSmoothly);
 }
 
 function setFavoritesStatus(message, state = "") {
@@ -346,9 +385,16 @@ function favoriteData(country) {
 }
 
 function renderFavorites(favorites) {
+  const uniqueMap = new Map();
+  favorites.filter((favorite) => favorite?.nome_item).forEach((favorite) => {
+    const key = normalize(favorite.nome_item);
+    if (!uniqueMap.has(key)) uniqueMap.set(key, favorite);
+  });
+  const uniqueFavorites = [...uniqueMap.values()];
+  favoriteNames = new Set(uniqueFavorites.map((favorite) => normalize(favorite.nome_item)));
   favoritesList.replaceChildren();
 
-  if (!favorites.length) {
+  if (!uniqueFavorites.length) {
     const empty = document.createElement("li");
     empty.className = "favorites-empty";
     empty.textContent = text("favoritesEmpty");
@@ -356,7 +402,7 @@ function renderFavorites(favorites) {
     return;
   }
 
-  favorites.forEach((favorite) => {
+  uniqueFavorites.forEach((favorite) => {
     const item = document.createElement("li");
     item.className = "favorite-item";
 
@@ -401,8 +447,21 @@ async function listFavorites() {
   setFavoritesStatus("");
 }
 
+function animateFavoriteButton() {
+  favoriteButton.classList.remove("favorite-pulse");
+  requestAnimationFrame(() => favoriteButton.classList.add("favorite-pulse"));
+}
+
 async function saveFavorite() {
   if (!currentCountry || !supabaseConfigured) return;
+
+  const favoriteKey = normalize(currentCountry.name);
+  if (favoriteNames.has(favoriteKey)) {
+    favoriteButton.classList.add("is-saved");
+    animateFavoriteButton();
+    setFavoritesStatus(text("favorited"), "success");
+    return;
+  }
 
   favoriteButton.disabled = true;
   const { error } = await supabase.from(FAVORITES_TABLE).insert({
@@ -416,7 +475,9 @@ async function saveFavorite() {
     return;
   }
 
+  favoriteNames.add(favoriteKey);
   favoriteButton.classList.add("is-saved");
+  animateFavoriteButton();
   favoriteButton.querySelector("span:first-child").textContent = "★";
   favoriteButton.querySelector("span:last-child").textContent = text("favorited");
   setFavoritesStatus(text("favoriteSaved"), "success");
@@ -504,3 +565,25 @@ refreshFavoritesButton.addEventListener("click", listFavorites);
 
 updateStaticInterface();
 listFavorites();
+
+
+// ---------- Tema claro/escuro ----------
+const themeToggle = document.getElementById("theme-toggle");
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  if (!themeToggle) return;
+  themeToggle.setAttribute("aria-pressed", String(isDark));
+  themeToggle.querySelector("span:first-child").textContent = isDark ? "☀" : "☾";
+  themeToggle.querySelector("span:last-child").textContent = isDark ? "Modo claro" : "Modo escuro";
+}
+
+const savedTheme = localStorage.getItem("atlas-theme");
+applyTheme(savedTheme === "dark" ? "dark" : "light");
+
+themeToggle?.addEventListener("click", () => {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("atlas-theme", nextTheme);
+  applyTheme(nextTheme);
+});
