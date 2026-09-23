@@ -1,4 +1,18 @@
 // script.js
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// A chave anon é própria para uso no frontend. Nunca coloque aqui a chave
+// service_role.
+const SUPABASE_URL = "https://lvpobhssmypsohckqngb.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cG9iaHNzbXlwc29oY2txbmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwOTAzMDUsImV4cCI6MjEwNTY2NjMwNX0.PhZwIgzHEXoEcDOnMjhQ9qHE8dKF8jzkF4gxtjXdpzw";
+const FAVORITES_TABLE = "favoritos";
+const supabaseConfigured =
+  SUPABASE_URL.startsWith("https://") &&
+  SUPABASE_ANON_KEY.length > 0 &&
+  !SUPABASE_URL.includes("SEU-PROJETO") &&
+  !SUPABASE_ANON_KEY.includes("SUA_CHAVE");
+const supabase = supabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
 // Compatível com o index.html e o style.css enviados.
 // A API countries.dev recebe o nome do país em inglês, mas a interface
 // aceita somente o idioma atualmente selecionado.
@@ -12,6 +26,11 @@ const searchButton = document.getElementById("search-btn");
 const statusElement = document.getElementById("status");
 const resultElement = document.getElementById("result");
 const chips = document.querySelectorAll(".chip");
+const favoriteButton = document.getElementById("favorite-btn");
+const favoritesList = document.getElementById("favorites-list");
+const favoritesStatus = document.getElementById("favorites-status");
+const refreshFavoritesButton = document.getElementById("refresh-favorites-btn");
+let currentCountry = null;
 
 const TEXT = {
   pt: {
@@ -30,6 +49,17 @@ const TEXT = {
     populationSuffix: "hab.",
     flagAlt: (name) => `Bandeira de ${name}`,
     labels: ["Capital", "População", "Área", "Moeda(s)", "Idioma(s)", "Fronteiras"],
+    favorite: "Favoritar país",
+    favorited: "País favoritado",
+    favoritesTitle: "Meus países favoritos",
+    favoritesEmpty: "Nenhum país favorito salvo ainda.",
+    favoritesLoading: "Carregando favoritos...",
+    favoritesNotConfigured: "Configure a URL e a chave anon do Supabase no script.js para ativar os favoritos.",
+    favoritesError: "Não foi possível acessar os favoritos. Confira a tabela e as políticas RLS.",
+    favoriteSaved: "País salvo nos favoritos.",
+    favoriteRemoved: "País removido dos favoritos.",
+    removeFavorite: "Excluir",
+    refresh: "Atualizar",
   },
   en: {
     subtitle: "Real-time search using the WEB API",
@@ -47,6 +77,17 @@ const TEXT = {
     populationSuffix: "pop.",
     flagAlt: (name) => `Flag of ${name}`,
     labels: ["Capital", "Population", "Area", "Currency/Currencies", "Language(s)", "Borders"],
+    favorite: "Favorite country",
+    favorited: "Country favorited",
+    favoritesTitle: "My favorite countries",
+    favoritesEmpty: "No favorite country saved yet.",
+    favoritesLoading: "Loading favorites...",
+    favoritesNotConfigured: "Set the Supabase URL and anon key in script.js to enable favorites.",
+    favoritesError: "Could not access favorites. Check the table and RLS policies.",
+    favoriteSaved: "Country saved to favorites.",
+    favoriteRemoved: "Country removed from favorites.",
+    removeFavorite: "Delete",
+    refresh: "Refresh",
   },
 };
 
@@ -197,6 +238,9 @@ function updateStaticInterface() {
 
   input.placeholder = text("placeholder");
   searchButton.querySelector("span").textContent = text("button");
+  favoriteButton.querySelector("span:last-child").textContent = text("favorite");
+  document.getElementById("favorites-title").textContent = text("favoritesTitle");
+  refreshFavoritesButton.textContent = text("refresh");
   labels.forEach((label, index) => { label.textContent = text("labels")[index]; });
 
   // Altera somente o texto antes do link, preservando countries.dev.
@@ -252,6 +296,7 @@ function getApiSearchTerm(rawQuery) {
 }
 
 function renderCountry(data) {
+  currentCountry = data;
   const name = displayName(data.name);
   const locale = currentLanguage() === "pt" ? "pt-BR" : "en-US";
   const populationSuffix = text("populationSuffix");
@@ -281,6 +326,115 @@ function renderCountry(data) {
     : text("noBorders");
 
   resultElement.hidden = false;
+  favoriteButton.disabled = !supabaseConfigured;
+  favoriteButton.classList.toggle("is-saved", false);
+}
+
+function setFavoritesStatus(message, state = "") {
+  favoritesStatus.textContent = message;
+  if (state) favoritesStatus.dataset.state = state;
+  else favoritesStatus.removeAttribute("data-state");
+}
+
+function favoriteData(country) {
+  return {
+    nome: country.name,
+    capital: country.capital || null,
+    bandeira: country.flags?.svg || country.flags?.png || null,
+    regiao: country.region || null,
+  };
+}
+
+function renderFavorites(favorites) {
+  favoritesList.replaceChildren();
+
+  if (!favorites.length) {
+    const empty = document.createElement("li");
+    empty.className = "favorites-empty";
+    empty.textContent = text("favoritesEmpty");
+    favoritesList.append(empty);
+    return;
+  }
+
+  favorites.forEach((favorite) => {
+    const item = document.createElement("li");
+    item.className = "favorite-item";
+
+    const info = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = favorite.nome_item;
+    const date = document.createElement("small");
+    date.textContent = favorite.criado_em
+      ? new Date(favorite.criado_em).toLocaleString(currentLanguage() === "pt" ? "pt-BR" : "en-US")
+      : "";
+    info.append(name, date);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove-favorite-btn";
+    remove.textContent = text("removeFavorite");
+    remove.addEventListener("click", () => removeFavorite(favorite.id));
+
+    item.append(info, remove);
+    favoritesList.append(item);
+  });
+}
+
+async function listFavorites() {
+  if (!supabaseConfigured) {
+    setFavoritesStatus(text("favoritesNotConfigured"), "warning");
+    return;
+  }
+
+  setFavoritesStatus(text("favoritesLoading"));
+  const { data, error } = await supabase
+    .from(FAVORITES_TABLE)
+    .select("id, criado_em, nome_item, dados_extra")
+    .order("criado_em", { ascending: false });
+
+  if (error) {
+    setFavoritesStatus(text("favoritesError"), "error");
+    return;
+  }
+
+  renderFavorites(data || []);
+  setFavoritesStatus("");
+}
+
+async function saveFavorite() {
+  if (!currentCountry || !supabaseConfigured) return;
+
+  favoriteButton.disabled = true;
+  const { error } = await supabase.from(FAVORITES_TABLE).insert({
+    nome_item: currentCountry.name,
+    dados_extra: favoriteData(currentCountry),
+  });
+
+  if (error) {
+    favoriteButton.disabled = false;
+    setFavoritesStatus(text("favoritesError"), "error");
+    return;
+  }
+
+  favoriteButton.classList.add("is-saved");
+  favoriteButton.querySelector("span:first-child").textContent = "★";
+  favoriteButton.querySelector("span:last-child").textContent = text("favorited");
+  setFavoritesStatus(text("favoriteSaved"), "success");
+  await listFavorites();
+  favoriteButton.disabled = false;
+}
+
+async function removeFavorite(id) {
+  if (!supabaseConfigured) return;
+
+  const { error } = await supabase.from(FAVORITES_TABLE).delete().eq("id", id);
+  if (error) {
+    setFavoritesStatus(text("favoritesError"), "error");
+    return;
+  }
+
+  setFavoritesStatus(text("favoriteRemoved"), "success");
+  await listFavorites();
 }
 
 async function searchCountry(query) {
@@ -328,8 +482,12 @@ form.addEventListener("submit", (event) => {
 langSelect.addEventListener("change", () => {
   input.value = "";
   resultElement.hidden = true;
+  currentCountry = null;
+  favoriteButton.classList.remove("is-saved");
+  favoriteButton.querySelector("span:first-child").textContent = "☆";
   clearStatus();
   updateStaticInterface();
+  listFavorites();
   input.focus();
 });
 
@@ -341,4 +499,8 @@ chips.forEach((chip) => {
   });
 });
 
+favoriteButton.addEventListener("click", saveFavorite);
+refreshFavoritesButton.addEventListener("click", listFavorites);
+
 updateStaticInterface();
+listFavorites();
