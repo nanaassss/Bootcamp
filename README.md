@@ -15,7 +15,7 @@ O Atlas Rápido é uma aplicação web para pesquisar países e consultar inform
 | **Etapa 01 — Aplicação web** | Concluída | Busca de países, exibição das informações, tradução dos campos, atalhos e publicação no GitHub Pages. |
 | **Etapa 02A — Banco de dados** | Concluída no Supabase | Projeto criado, tabela `favoritos` criada e políticas RLS configuradas para permitir acesso pelo papel `anon`. |
 | **Etapa 02B — Integração** | Implementada no código | O frontend foi conectado ao Supabase e recebeu as operações de salvar, listar e excluir países favoritos. |
-| **Etapa 02C — Docker e Docker Hub** | Quase concluída | `Dockerfile` e `.dockerignore` criados, imagem construída e testada, publicada no Docker Hub com as tags `1.0` e `latest`, descrição do repositório preenchida (SQ3) e dois containers simultâneos testados (SQ4). Falta apenas publicar a tag `1.1` (SQ2) e commitar a evidência de print da SQ4. |
+| **Etapa 02C — Docker e Docker Hub** | Concluída | `Dockerfile` e `.dockerignore` criados, imagem construída e testada, publicada no Docker Hub com as tags `1.0`, `1.1` e `latest`, descrição do repositório preenchida (SQ3) e dois containers simultâneos testados com evidência commitada (SQ4). |
 
 ## Funcionalidades
 
@@ -40,7 +40,7 @@ A API REST Countries v3.1, utilizada originalmente, foi substituída porque a ve
 A integração foi implementada no `script.js` usando a biblioteca `@supabase/supabase-js` carregada por módulo ES:
 
 ```javascript
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "[https://esm.sh/@supabase/supabase-js@2](https://esm.sh/@supabase/supabase-js@2)";
 ```
 
 A tabela `favoritos` no Supabase usa as colunas abaixo:
@@ -57,7 +57,7 @@ A tabela `favoritos` no Supabase usa as colunas abaixo:
 No início do `script.js`:
 
 ```javascript
-const SUPABASE_URL = "https://SEU-PROJETO.supabase.co";
+const SUPABASE_URL = "[https://SEU-PROJETO.supabase.co](https://SEU-PROJETO.supabase.co)";
 const SUPABASE_ANON_KEY = "SUA_CHAVE_ANON_PUBLIC";
 ```
 
@@ -102,9 +102,9 @@ docker run -d -p 8080:80 nanaaass/atlas-rapido:latest
 | Sidequest | Status | Evidência |
 | --- | --- | --- |
 | **SQ1 — .dockerignore** | Concluída | Arquivo `.dockerignore` na raiz do repositório, excluindo `.git`, `README.md`, arquivos de sistema e as próprias evidências (`*.png`, `evidencias/`). Isso deixa a imagem menor e o build mais rápido, porque o Docker não perde tempo copiando (nem enviando pro contexto de build) arquivos que não são necessários para o site rodar dentro do container. |
-| **SQ2 — Versionamento de imagem** | Concluída | Tags `1.0` e `latest` publicadas no Docker Hub. Tag `1.1` (após melhoria) ainda pendente. |
+| **SQ2 — Versionamento de imagem** | Concluída | Tags `1.0`, `1.1` e `latest` publicadas no Docker Hub. |
 | **SQ3 — Descrição no Docker Hub** | Concluída | Overview do repositório preenchido com descrição da aplicação, o comando `docker run` pronto para copiar e o link do repositório no GitHub. |
-| **SQ4 — Explorando a orquestração** | Concluída | Dois containers rodados simultaneamente nas portas 8080 e 8081 (`atlas-rapido-container` e `atlas-rapido-container-2`), confirmados com `docker ps`. Print pendente de commit em `evidencias/docker-ps-sq4.png`. Reflexão abaixo. |
+| **SQ4 — Explorando a orquestração** | Concluída | Dois containers rodados simultaneamente nas portas 8080 e 8081 (`atlas-rapido-container` e `atlas-rapido-container-2`), confirmados com `docker ps`. Print commitado em `evidencias/docker-ps-sq4.png`. Reflexão abaixo. |
 
 ### SQ4 — Se eu tivesse 100 containers, como gerenciaria?
 
@@ -118,7 +118,7 @@ Se eu tivesse 100 containers pra gerenciar, fazer isso manualmente — escolhend
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/nanaassss/Bootcamp.git
+   git clone [https://github.com/nanaassss/Bootcamp.git](https://github.com/nanaassss/Bootcamp.git)
    cd Bootcamp
    ```
 2. Configure `SUPABASE_URL` e `SUPABASE_ANON_KEY` no início do `script.js`.
@@ -156,11 +156,6 @@ Acesse [http://localhost:8080](http://localhost:8080).
 - Repositório no GitHub: [https://github.com/nanaassss/Bootcamp](https://github.com/nanaassss/Bootcamp)
 - Repositório no Docker Hub: [https://hub.docker.com/r/nanaaass/atlas-rapido](https://hub.docker.com/r/nanaaass/atlas-rapido)
 
-## Próximas tarefas pendentes
-
-- Publicar a tag `1.1` no Docker Hub, após alguma melhoria na aplicação (SQ2).
-- Subir e commitar o print `evidencias/docker-ps-sq4.png` com os dois containers simultâneos (SQ4).
-
 ## Melhorias futuras
 
 - Criar autenticação de usuários.
@@ -168,6 +163,8 @@ Acesse [http://localhost:8080](http://localhost:8080).
 - Restringir as políticas RLS por `user_id`.
 - Adicionar atualização de registros e uma configuração de ambiente mais segura para desenvolvimento.
 
-## Licença
+## Licença e Nota de Uso de IA
 
 Projeto acadêmico desenvolvido para o Bootcamp 2.
+
+> **Nota sobre o uso de Inteligência Artificial:** O conteúdo técnico, código, arquitetura, testes e lógica do projeto foram desenvolvidos integralmente pelo autor. O modelo de linguagem **Google Gemini** foi utilizado exclusivamente para auxílio na formatação, organização sintática em Markdown e estruturação visual deste arquivo `README.md`.
