@@ -1,0 +1,15 @@
+# Arquivos de controle de versão não são necessários dentro da imagem
+.git
+.gitignore
+
+# Documentação: não faz sentido servir isso como parte do site
+README.md
+*.md
+
+# Arquivos de sistema/editor que não têm nada a ver com a aplicação
+.DS_Store
+.vscode/
+
+# Qualquer rascunho ou captura de tela usada só como evidência no README
+evidencias/
+*.png
