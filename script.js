@@ -225,6 +225,7 @@ async function searchCountry(query) {
 }
 
 function renderCountry(data) {
+  currentCountry = data;
   const namePt = translateName(data.name);
 
   // 1) Bandeira
@@ -268,6 +269,8 @@ function renderCountry(data) {
   document.getElementById("country-borders").textContent = borders;
 
   resultEl.hidden = false;
+  setFavoriteButtonState();
+  requestAnimationFrame(scrollToResultSmoothly);
 }
 
 function setLoading() {
@@ -287,3 +290,169 @@ function showError(message) {
   statusEl.dataset.state = "error";
   statusEl.textContent = message;
 }
+
+
+// ---------- Tema ----------
+const themeToggle = document.getElementById("theme-toggle");
+const THEME_KEY = "atlas-theme";
+const FAVORITES_KEY = "atlas-favorites";
+const favoriteButton = document.getElementById("favorite-btn");
+const refreshFavoritesButton = document.getElementById("refresh-favorites-btn");
+const favoritesList = document.getElementById("favorites-list");
+const favoritesStatus = document.getElementById("favorites-status");
+let currentCountry = null;
+let favorites = [];
+let scrollAnimationFrame = null;
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  themeToggle.setAttribute("aria-pressed", String(isDark));
+  themeToggle.innerHTML = `<span aria-hidden="true">${isDark ? "☀" : "☾"}</span><span>${isDark ? "Modo claro" : "Modo escuro"}</span>`;
+}
+
+applyTheme(localStorage.getItem(THEME_KEY) || "light");
+themeToggle.addEventListener("click", () => {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, nextTheme);
+  applyTheme(nextTheme);
+});
+
+// ---------- Rolagem suave ----------
+function scrollToResultSmoothly() {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const startY = window.scrollY;
+  const resultRect = resultEl.getBoundingClientRect();
+  const targetY = Math.max(0, startY + resultRect.top - 72);
+
+  if (scrollAnimationFrame) cancelAnimationFrame(scrollAnimationFrame);
+  if (reduceMotion || Math.abs(targetY - startY) < 8) {
+    window.scrollTo(0, targetY);
+    return;
+  }
+
+  const duration = 1350;
+  const startTime = performance.now();
+  const easeInOutSine = (progress) => -(Math.cos(Math.PI * progress) - 1) / 2;
+
+  function animateScroll(currentTime) {
+    const progress = Math.min((currentTime - startTime) / duration, 1);
+    const easedProgress = easeInOutSine(progress);
+    window.scrollTo(0, startY + (targetY - startY) * easedProgress);
+    if (progress < 1) scrollAnimationFrame = requestAnimationFrame(animateScroll);
+    else scrollAnimationFrame = null;
+  }
+
+  scrollAnimationFrame = requestAnimationFrame(animateScroll);
+}
+
+// ---------- Favoritos ----------
+function normalizeFavoriteName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function readFavorites() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFavorites() {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+}
+
+function favoriteDisplayName(favorite) {
+  return favorite.nome_item || favorite.name || "País sem nome";
+}
+
+function renderFavorites() {
+  const unique = new Map();
+  favorites.forEach((favorite) => {
+    const name = favoriteDisplayName(favorite);
+    const key = normalizeFavoriteName(name);
+    if (key && !unique.has(key)) unique.set(key, favorite);
+  });
+  favorites = [...unique.values()];
+  writeFavorites();
+  favoritesList.innerHTML = "";
+
+  if (!favorites.length) {
+    favoritesList.innerHTML = '<li class="favorites-empty">Nenhum país favorito salvo ainda.</li>';
+    return;
+  }
+
+  favorites.forEach((favorite) => {
+    const name = favoriteDisplayName(favorite);
+    const item = document.createElement("li");
+    item.className = "favorite-item";
+    item.innerHTML = `
+      <div><strong>${name}</strong><small>${favorite.savedAt || "Salvo agora"}</small></div>
+      <button type="button" class="remove-favorite-btn">Excluir</button>
+    `;
+    item.querySelector("button").addEventListener("click", () => {
+      favorites = favorites.filter((entry) => normalizeFavoriteName(favoriteDisplayName(entry)) !== normalizeFavoriteName(name));
+      writeFavorites();
+      renderFavorites();
+      setFavoriteButtonState();
+    });
+    favoritesList.appendChild(item);
+  });
+}
+
+function setFavoriteButtonState() {
+  if (!favoriteButton || !currentCountry) return;
+  const key = normalizeFavoriteName(currentCountry.name);
+  const saved = favorites.some((favorite) => normalizeFavoriteName(favoriteDisplayName(favorite)) === key);
+  favoriteButton.classList.toggle("is-saved", saved);
+  favoriteButton.innerHTML = `<span aria-hidden="true">${saved ? "★" : "☆"}</span><span>${saved ? "País favoritado" : "Favoritar país"}</span>`;
+}
+
+function animateFavoriteButton() {
+  favoriteButton.classList.remove("favorite-pulse");
+  requestAnimationFrame(() => favoriteButton.classList.add("favorite-pulse"));
+}
+
+favoriteButton.addEventListener("click", () => {
+  if (!currentCountry) return;
+  const key = normalizeFavoriteName(currentCountry.name);
+  const alreadySaved = favorites.some((favorite) => normalizeFavoriteName(favoriteDisplayName(favorite)) === key);
+
+  if (alreadySaved) {
+    favoritesStatus.dataset.state = "success";
+    favoritesStatus.textContent = "País favoritado";
+    animateFavoriteButton();
+    setFavoriteButtonState();
+    return;
+  }
+
+  favorites.unshift({
+    nome_item: currentCountry.name,
+    savedAt: new Date().toLocaleString("pt-BR"),
+  });
+  writeFavorites();
+  renderFavorites();
+  setFavoriteButtonState();
+  favoritesStatus.dataset.state = "success";
+  favoritesStatus.textContent = "País favoritado com sucesso.";
+  animateFavoriteButton();
+});
+
+function refreshFavorites() {
+  favoritesStatus.removeAttribute("data-state");
+  favoritesStatus.textContent = "Atualizando favoritos...";
+  favorites = readFavorites();
+  renderFavorites();
+  setFavoriteButtonState();
+  favoritesStatus.textContent = "Lista de favoritos atualizada.";
+}
+
+refreshFavoritesButton.addEventListener("click", refreshFavorites);
+favorites = readFavorites();
+renderFavorites();
